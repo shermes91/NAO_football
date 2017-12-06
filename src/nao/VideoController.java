@@ -31,7 +31,9 @@ public class VideoController
     // a flag to change the button behavior
     private boolean cameraActive;
     // the logo to be loaded
-    private final String NAO_CAMERA_NAME = "Nao Image";
+    ALVideoDevice video;
+    private String NAO_CAMERA_NAME = "Nao Image";
+    private String moduleName;
 
     /**
      * Initialize method, automatically called by @{link FXMLLoader}
@@ -56,20 +58,18 @@ public class VideoController
      */
     protected void initNAO() throws Exception {
 
-        int topCamera = 0;
-        int resolution = 2; // 640 x 480
+        int topCamera = 1;
+        int resolution = 1; // 640 x 480
         int colorspace = 13; // BGR
         int frameRate = 30; // FPS
         com.aldebaran.qi.Application application;
-        ALVideoDevice video;
-        String moduleName;
 
         Session session = new Session();
         String[] strings = {""};
         application = new com.aldebaran.qi.Application(strings);
         try {
 
-            String robotIp = "192.168.1.12";
+            String robotIp = "192.168.1.4";
 
             session.connect("tcp://" + robotIp + ":9559").sync(500, TimeUnit.MILLISECONDS);
 
@@ -94,11 +94,13 @@ public class VideoController
 
 
         Runnable frameGrabber = new Runnable() {
+            Mat blue = new Mat();
+            List<Object> imageRemote = null;
+            ByteBuffer b;
 
-            @Override
+            //@Override
             public void run() {
-                Mat blue = new Mat();
-                List<Object> imageRemote = null;
+
                 try {
                     imageRemote = (List<Object>) alVideoDevice.getImageRemote(subscribeCamera);
                 } catch (CallError callError) {
@@ -106,11 +108,10 @@ public class VideoController
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                ByteBuffer b = (ByteBuffer) imageRemote.get(6);
+                b = (ByteBuffer) imageRemote.get(6);
                 Mat image = new Mat((int) imageRemote.get(1), (int) imageRemote.get(0), CvType.CV_8UC3);
                 image.put(0, 0, b.array());
-
-                preProcessForBallDetection(blue, image, new Scalar(160, 100, 100), new Scalar(179, 255, 255));
+                preProcessForBallDetection(blue, image, new Scalar(125, 100, 30), new Scalar(255, 255, 255));
                 image = detectCircle(image, blue);
 
                 // convert and show the frame
@@ -120,103 +121,13 @@ public class VideoController
             }
         };
         this.timer = Executors.newSingleThreadScheduledExecutor();
-        this.timer.scheduleAtFixedRate(frameGrabber, 0, 33, TimeUnit.MILLISECONDS);
+        this.timer.scheduleAtFixedRate(frameGrabber, 0, 100, TimeUnit.MILLISECONDS);
     }
-
-    /**
-     * start webcam on notebook for testing
-     */
-    @FXML
-	private void startWebcam()
-	{
-
-		// set a fixed width for the frame
-		this.currentFrame.setFitWidth(600);
-		// preserve image ratio
-		this.currentFrame.setPreserveRatio(true);
-
-		if (!this.cameraActive)
-		{
-			// start the video capture
-			this.capture.open(0);
-
-			// is the video stream available?
-			if (this.capture.isOpened())
-			{
-				this.cameraActive = true;
-
-				// grab a frame every 33 ms (30 frames/sec)
-				Runnable frameGrabber = new Runnable() {
-
-					@Override
-					public void run()
-					{
-						// effectively grab and process a single frame
-						Mat frame = grabFrame();
-						// convert and show the frame
-						Image imageToShow = Utils.mat2Image(frame);
-						updateImageView(currentFrame, imageToShow);
-					}
-				};
-
-				this.timer = Executors.newSingleThreadScheduledExecutor();
-				this.timer.scheduleAtFixedRate(frameGrabber, 0, 33, TimeUnit.MILLISECONDS);
-			}
-			else
-			{
-				// log the error
-				System.err.println("Impossible to open the camera connection...");
-			}
-		}
-		else
-		{
-			// the camera is not active at this point
-			this.cameraActive = false;
-
-			// stop the timer
-			this.stopAcquisition();
-		}
-	}
-
-    /**
-     * Get frame from notebook camera for testing
-     * @return the {@link Image} to show
-     */
-
-	private Mat grabFrame()
-	{
-		Mat frame = new Mat();
-		Mat blue = new Mat();
-		// check if the capture is open
-		if (this.capture.isOpened())
-		{
-			try
-			{
-				// read the current frame
-				this.capture.read(frame);
-
-				// if the frame is not empty, process it
-				if (!frame.empty())
-				{
-                    preProcessForBallDetection(blue, frame, new Scalar(90,150,0), new Scalar(150,255,255));
-
-					frame = detectCircle(frame, blue);
-				}
-
-			}
-			catch (Exception e)
-			{
-				// log the error
-				System.err.println("Exception during the frame elaboration: " + e);
-			}
-		}
-		return frame;
-	}
 
     private void preProcessForBallDetection(Mat blue, Mat image, Scalar lowerb, Scalar upperb) {
         Imgproc.GaussianBlur(image, blue, new Size(9, 9), 0, 0);
         Imgproc.cvtColor(blue, blue, Imgproc.COLOR_BGR2HSV);
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(20, 20));
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(8, 8));
 
         Imgproc.dilate(blue, blue, kernel);
         Imgproc.dilate(blue, blue, kernel);
@@ -224,6 +135,7 @@ public class VideoController
         Imgproc.erode(blue, blue, kernel);
         Imgproc.erode(blue, blue, kernel);
         Imgproc.erode(blue, blue, kernel);
+
         Core.inRange(blue, lowerb, upperb, blue);
     }
 
@@ -231,7 +143,7 @@ public class VideoController
 
         Mat circles = new Mat();
 
-        int minRadius = 50;
+        int minRadius = 5;
         int maxRadius = 150;
         Imgproc.HoughCircles(blue, circles, Imgproc.CV_HOUGH_GRADIENT, 1, minRadius, 120, 10, minRadius, maxRadius);
 
@@ -277,6 +189,12 @@ public class VideoController
             this.capture.release();
         }
     }
+
+    @FXML
+    public void shutdown() throws InterruptedException, CallError {
+        video.unsubscribe(moduleName);
+    }
+
 
     /**
      * Update the {@link ImageView} in the JavaFX main thread
