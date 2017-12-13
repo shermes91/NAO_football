@@ -234,7 +234,9 @@ public class VideoController
 
     @FXML
     public void shutdown() throws InterruptedException, CallError {
+        moveNao.shutdown();
         video.unsubscribe(moduleName);
+
     }
 
 

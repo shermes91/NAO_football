@@ -13,6 +13,41 @@ public class MoveNao {
     float x;
     float y;
 
+    public void shutdown() {
+        System.out.println("Moving to Exitposition");
+        ArrayList<String> names = new ArrayList<>();
+        names.add("HeadYaw");
+        names.add("HeadPitch");
+        ArrayList<Float> angles = new ArrayList<>();
+        angles.add((float) 0);
+        angles.add((float) 0);
+        float speed = (float) 0.5;
+        try {
+            alMotion.setAngles(names, angles, speed);
+            alMotion.closeHand("LHand");
+            alMotion.closeHand("RHand");
+        } catch (CallError callError) {
+            callError.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        try {
+            alMotion.setStiffnesses("Head", 0);
+            alMotion.stopMove();
+        } catch (CallError callError) {
+            callError.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+    }
+
     public enum Direction {
         LEFT, RIGHT
     }
@@ -33,6 +68,7 @@ public class MoveNao {
         angles.add((float) 0);
         float speed = (float) 0.5;
         alMotion.setAngles(names, angles, speed);
+
         //Thread.sleep(4000);
         //alMotion.setStiffnesses("Head", 0);
 
@@ -42,8 +78,8 @@ public class MoveNao {
         this.x = (float) p.x;
         this.y = (float) p.y;
         //Mitte 160 : 120
-        if (x < 150) turnRight();
-        else if(x > 170) turnLeft();
+        if (x < 140) turnRight();
+        else if(x > 180) turnLeft();
     }
 
     private void turnLeft() {
