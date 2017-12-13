@@ -1,6 +1,7 @@
 package nao;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -44,7 +45,6 @@ public class VideoController
         this.cameraActive = false;
         try{
             initNAO();
-            //startWebcam();
         }
         catch(Exception e) {
             System.out.println(e.getStackTrace());
@@ -58,8 +58,9 @@ public class VideoController
      */
     protected void initNAO() throws Exception {
 
-        int topCamera = 1;
-        int resolution = 1; // 640 x 480
+        int topCamera = 0;
+        int bottomCamera = 1;
+        int resolution = 1; // 320x240
         int colorspace = 13; // BGR
         int frameRate = 30; // FPS
         com.aldebaran.qi.Application application;
@@ -69,7 +70,7 @@ public class VideoController
         application = new com.aldebaran.qi.Application(strings);
         try {
 
-            String robotIp = "192.168.1.4";
+            String robotIp = "192.168.1.20";
 
             session.connect("tcp://" + robotIp + ":9559").sync(500, TimeUnit.MILLISECONDS);
 
@@ -94,7 +95,8 @@ public class VideoController
 
 
         Runnable frameGrabber = new Runnable() {
-            Mat blue = new Mat();
+            Mat pinkPixels = new Mat();
+            Mat yellowPixels = new Mat();
             List<Object> imageRemote = null;
             ByteBuffer b;
 
@@ -111,8 +113,11 @@ public class VideoController
                 b = (ByteBuffer) imageRemote.get(6);
                 Mat image = new Mat((int) imageRemote.get(1), (int) imageRemote.get(0), CvType.CV_8UC3);
                 image.put(0, 0, b.array());
-                preProcessForBallDetection(blue, image, new Scalar(125, 100, 30), new Scalar(255, 255, 255));
-                image = detectCircle(image, blue);
+
+                //image = detectCircle(image, pinkPixels);
+
+
+                image = detectGoal(image, yellowPixels);
 
                 // convert and show the frame
                 Image imageToShow = Utils.mat2Image(image);
@@ -124,28 +129,30 @@ public class VideoController
         this.timer.scheduleAtFixedRate(frameGrabber, 0, 100, TimeUnit.MILLISECONDS);
     }
 
-    private void preProcessForBallDetection(Mat blue, Mat image, Scalar lowerb, Scalar upperb) {
-        Imgproc.GaussianBlur(image, blue, new Size(9, 9), 0, 0);
-        Imgproc.cvtColor(blue, blue, Imgproc.COLOR_BGR2HSV);
+    private void preProcessForBallDetection(Mat pinkPixels, Mat image, Scalar lowerP, Scalar upperP) {
+        Imgproc.GaussianBlur(image, pinkPixels, new Size(9, 9), 0, 0);
+        Imgproc.cvtColor(pinkPixels, pinkPixels, Imgproc.COLOR_BGR2HSV);
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(8, 8));
 
-        Imgproc.dilate(blue, blue, kernel);
-        Imgproc.dilate(blue, blue, kernel);
-        Imgproc.dilate(blue, blue, kernel);
-        Imgproc.erode(blue, blue, kernel);
-        Imgproc.erode(blue, blue, kernel);
-        Imgproc.erode(blue, blue, kernel);
+        Imgproc.dilate(pinkPixels, pinkPixels, kernel);
+        Imgproc.dilate(pinkPixels, pinkPixels, kernel);
+        Imgproc.dilate(pinkPixels, pinkPixels, kernel);
+        Imgproc.erode(pinkPixels, pinkPixels, kernel);
+        Imgproc.erode(pinkPixels, pinkPixels, kernel);
+        Imgproc.erode(pinkPixels, pinkPixels, kernel);
 
-        Core.inRange(blue, lowerb, upperb, blue);
+        Core.inRange(pinkPixels, lowerP, upperP, pinkPixels);
     }
 
-    private Mat detectCircle(Mat src, Mat blue){
+    private Mat detectCircle(Mat src, Mat pinkPixels){
+
+        preProcessForBallDetection(pinkPixels, src, new Scalar(125, 100, 30), new Scalar(255, 255, 255));
 
         Mat circles = new Mat();
 
-        int minRadius = 5;
-        int maxRadius = 150;
-        Imgproc.HoughCircles(blue, circles, Imgproc.CV_HOUGH_GRADIENT, 1, minRadius, 120, 10, minRadius, maxRadius);
+        int minRadius = 10;
+        int maxRadius = 50;
+        Imgproc.HoughCircles(pinkPixels, circles, Imgproc.CV_HOUGH_GRADIENT, 1, minRadius, 120, 10, minRadius, maxRadius);
 
         if (circles.cols() != 0) {
             for (int x = 0; x < 1;x++) {
@@ -160,6 +167,56 @@ public class VideoController
                 circle( src, center, radius, new Scalar(0,0,255), 3, 8, 0 );
             }
         }
+        return src;
+    }
+
+    private Mat detectGoal(Mat src, Mat yellowPixels){
+
+        Imgproc.GaussianBlur(src, yellowPixels, new Size(9, 9), 0, 0);
+        Imgproc.cvtColor(yellowPixels, yellowPixels, Imgproc.COLOR_BGR2HSV);
+
+        Core.inRange(yellowPixels, new Scalar(20, 100, 100), new Scalar(30,255,255), yellowPixels);
+
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(10, 10));
+
+        Imgproc.dilate(yellowPixels, yellowPixels, kernel);
+        Imgproc.dilate(yellowPixels, yellowPixels, kernel);
+        Imgproc.dilate(yellowPixels, yellowPixels, kernel);
+        Imgproc.erode(yellowPixels, yellowPixels, kernel);
+        Imgproc.erode(yellowPixels, yellowPixels, kernel);
+        Imgproc.erode(yellowPixels, yellowPixels, kernel);
+
+        List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
+        Imgproc.findContours(yellowPixels, contours, new Mat(), Imgproc.RETR_LIST,Imgproc.CHAIN_APPROX_SIMPLE);
+        Mat drawContours = new Mat();
+        for(int i=0; i< contours.size();i++){
+            drawContours(src, contours, i, new Scalar(0,0,255));
+        }
+
+        if (contours.size() == 1) {
+            MatOfPoint goal = contours.get(0);
+
+            Point firstPoint = goal.toArray()[0];
+            double leftPointX = firstPoint.x;
+            double rightPointX = firstPoint.x;
+            double bottomY = firstPoint.y;
+            for ( Point p : goal.toArray()) {
+                if (p.x > rightPointX) {
+                    rightPointX = p.x;
+                }
+                if (p.x < leftPointX) {
+                    leftPointX = p.x;
+                }
+                if (p.y > bottomY) {
+                    bottomY = p.y;
+                }
+            }
+            Point middle = new Point(rightPointX - leftPointX, bottomY);
+
+            // draw the circle center
+            circle(src, middle, 3,new Scalar(0,255,0), -1, 8, 0 );
+        }
+
         return src;
     }
 
