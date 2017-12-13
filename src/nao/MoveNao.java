@@ -25,14 +25,14 @@ public class MoveNao {
         alMotion.clearStats();
         alMotion.moveInit();
         alMotion.setStiffnesses("Head", 1.0);
-        //ArrayList<String> names = new ArrayList<>();
-        //names.add("HeadYaw");
-        //names.add("HeadPitch");
-        //ArrayList<Float> angles = new ArrayList<>();
-        //angles.add((float) 0);
-        //angles.add((float) 0);
-        //float speed = (float) 0.1;
-        //alMotion.setAngles(names, angles, speed);
+        ArrayList<String> names = new ArrayList<>();
+        names.add("HeadYaw");
+        names.add("HeadPitch");
+        ArrayList<Float> angles = new ArrayList<>();
+        angles.add((float) 0);
+        angles.add((float) 0);
+        float speed = (float) 0.5;
+        alMotion.setAngles(names, angles, speed);
         //Thread.sleep(4000);
         //alMotion.setStiffnesses("Head", 0);
 
@@ -49,7 +49,7 @@ public class MoveNao {
     private void turnLeft() {
         System.out.println("Turning Left");
         try {
-            alMotion.changeAngles("HeadYaw",-0.3,(float)0.05);
+            alMotion.changeAngles("HeadYaw",-0.1,(float)0.05);
         } catch (CallError callError) {
             callError.printStackTrace();
         } catch (InterruptedException e) {
@@ -60,7 +60,7 @@ public class MoveNao {
     private void turnRight() {
         System.out.println("Truning Right");
         try {
-            alMotion.changeAngles("HeadYaw",0.3,(float)0.05);
+            alMotion.changeAngles("HeadYaw",0.1,(float)0.05);
         } catch (CallError callError) {
             callError.printStackTrace();
         } catch (InterruptedException e) {

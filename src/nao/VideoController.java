@@ -25,6 +25,7 @@ public class VideoController
 {
     @FXML
     private ImageView currentFrame;
+    private MoveNao moveNao;
 
     // a timer for acquiring the video stream
     private ScheduledExecutorService timer;
@@ -76,6 +77,7 @@ public class VideoController
             session.connect("tcp://" + robotIp + ":9559").sync(500, TimeUnit.MILLISECONDS);
 
             video = new ALVideoDevice(session);
+            moveNao = new MoveNao(session);
             moduleName = video.subscribeCamera(NAO_CAMERA_NAME, topCamera, resolution, colorspace, frameRate);
             System.out.println(moduleName);
             getNaoFrames(video, moduleName);
@@ -119,7 +121,7 @@ public class VideoController
 
 
                 image = detectGoal(image, yellowPixels);
-                image = detectCircle(image, pinkPixels);
+               //image = detectCircle(image, pinkPixels);
 
                 // convert and show the frame
                 Image imageToShow = Utils.mat2Image(image);
@@ -223,6 +225,7 @@ public class VideoController
             }
             drawContours(src, contours, contoursMaxId, new Scalar(0,0,255));
             Point middle = new Point(rightPointX - leftPointX, bottomY);
+            moveNao.followBall(middle,true);
             circle(src, middle, 3,new Scalar(0,255,0), -1, 8, 0 );
         }
 
