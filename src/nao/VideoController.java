@@ -119,12 +119,11 @@ public class VideoController
 
                 //image = detectCircle(image, pinkPixels);
 
-
                 image = detectGoal(image, yellowPixels);
                //image = detectCircle(image, pinkPixels);
 
                 // convert and show the frame
-                Image imageToShow = Utils.mat2Image(image);
+                Image imageToShow = Utils.mat2Image(yellowPixels);
                 updateImageView(currentFrame, imageToShow);
 
             }
@@ -224,8 +223,8 @@ public class VideoController
                 }
             }
             drawContours(src, contours, contoursMaxId, new Scalar(0,0,255));
-            Point middle = new Point(rightPointX - leftPointX, bottomY);
-            moveNao.followBall(middle,true);
+            Point middle = new Point((rightPointX + leftPointX) / 2, bottomY);
+            //moveNao.followBall(middle,true);
             circle(src, middle, 3,new Scalar(0,255,0), -1, 8, 0 );
         }
 
