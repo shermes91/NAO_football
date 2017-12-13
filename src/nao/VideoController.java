@@ -2,6 +2,7 @@ package nao;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -70,7 +71,7 @@ public class VideoController
         application = new com.aldebaran.qi.Application(strings);
         try {
 
-            String robotIp = "192.168.1.20";
+            String robotIp = "192.168.1.13";
 
             session.connect("tcp://" + robotIp + ":9559").sync(500, TimeUnit.MILLISECONDS);
 
@@ -118,6 +119,7 @@ public class VideoController
 
 
                 image = detectGoal(image, yellowPixels);
+                image = detectCircle(image, pinkPixels);
 
                 // convert and show the frame
                 Image imageToShow = Utils.mat2Image(image);
@@ -177,7 +179,7 @@ public class VideoController
 
         Core.inRange(yellowPixels, new Scalar(20, 100, 100), new Scalar(30,255,255), yellowPixels);
 
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(10, 10));
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5, 5));
 
         Imgproc.dilate(yellowPixels, yellowPixels, kernel);
         Imgproc.dilate(yellowPixels, yellowPixels, kernel);
@@ -188,15 +190,23 @@ public class VideoController
 
         List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
         Imgproc.findContours(yellowPixels, contours, new Mat(), Imgproc.RETR_LIST,Imgproc.CHAIN_APPROX_SIMPLE);
-        Mat drawContours = new Mat();
-        for(int i=0; i< contours.size();i++){
-            drawContours(src, contours, i, new Scalar(0,0,255));
+
+        double maxArea = 0;
+        int i = -1;
+        int contoursMaxId = -1;
+        Iterator<MatOfPoint> each = contours.iterator();
+        while (each.hasNext()) {
+            i++;
+            MatOfPoint wrapper = each.next();
+            double area = Imgproc.contourArea(wrapper);
+            if (area > maxArea) {
+                maxArea = area;
+                contoursMaxId = i;
+            }
         }
-
-        if (contours.size() == 1) {
-            MatOfPoint goal = contours.get(0);
-
-            Point firstPoint = goal.toArray()[0];
+        if (maxArea > 100 && contoursMaxId != -1) {
+            MatOfPoint goal = contours.get(contoursMaxId);
+            Point firstPoint = goal.toArray()[contoursMaxId];
             double leftPointX = firstPoint.x;
             double rightPointX = firstPoint.x;
             double bottomY = firstPoint.y;
@@ -211,40 +221,12 @@ public class VideoController
                     bottomY = p.y;
                 }
             }
+            drawContours(src, contours, contoursMaxId, new Scalar(0,0,255));
             Point middle = new Point(rightPointX - leftPointX, bottomY);
-
-            // draw the circle center
             circle(src, middle, 3,new Scalar(0,255,0), -1, 8, 0 );
         }
 
         return src;
-    }
-
-    /**
-     * Stop the acquisition from the camera and release all the resources
-     */
-    private void stopAcquisition()
-    {
-        if (this.timer != null && !this.timer.isShutdown())
-        {
-            try
-            {
-                // stop the timer
-                this.timer.shutdown();
-                this.timer.awaitTermination(33, TimeUnit.MILLISECONDS);
-            }
-            catch (InterruptedException e)
-            {
-                // log any exception
-                System.err.println("Exception in stopping the frame capture, trying to release the camera now... " + e);
-            }
-        }
-
-        if (this.capture.isOpened())
-        {
-            // release the camera
-            this.capture.release();
-        }
     }
 
     @FXML
