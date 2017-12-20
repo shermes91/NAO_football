@@ -72,7 +72,7 @@ public class VideoController
         application = new com.aldebaran.qi.Application(strings);
         try {
 
-            String robotIp = "192.168.1.13";
+            String robotIp = "192.168.1.6";
 
             session.connect("tcp://" + robotIp + ":9559").sync(500, TimeUnit.MILLISECONDS);
 
@@ -117,13 +117,13 @@ public class VideoController
                 Mat image = new Mat((int) imageRemote.get(1), (int) imageRemote.get(0), CvType.CV_8UC3);
                 image.put(0, 0, b.array());
 
-                //image = detectCircle(image, pinkPixels);
+                image = detectCircle(image, pinkPixels);
 
                 image = detectGoal(image, yellowPixels);
-               //image = detectCircle(image, pinkPixels);
+                image = detectCircle(image, pinkPixels);
 
                 // convert and show the frame
-                Image imageToShow = Utils.mat2Image(yellowPixels);
+                Image imageToShow = Utils.mat2Image(image);
                 updateImageView(currentFrame, imageToShow);
 
             }
@@ -134,13 +134,10 @@ public class VideoController
 
     private void preProcessForBallDetection(Mat pinkPixels, Mat image, Scalar lowerP, Scalar upperP) {
         Imgproc.GaussianBlur(image, pinkPixels, new Size(9, 9), 0, 0);
-        Imgproc.cvtColor(pinkPixels, pinkPixels, Imgproc.COLOR_BGR2HSV);
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(8, 8));
 
-        Imgproc.dilate(pinkPixels, pinkPixels, kernel);
-        Imgproc.dilate(pinkPixels, pinkPixels, kernel);
-        Imgproc.dilate(pinkPixels, pinkPixels, kernel);
-        Imgproc.erode(pinkPixels, pinkPixels, kernel);
+        Imgproc.cvtColor(pinkPixels, pinkPixels, Imgproc.COLOR_BGR2HSV);
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(1, 4));
+
         Imgproc.erode(pinkPixels, pinkPixels, kernel);
         Imgproc.erode(pinkPixels, pinkPixels, kernel);
 
@@ -149,13 +146,13 @@ public class VideoController
 
     private Mat detectCircle(Mat src, Mat pinkPixels){
 
-        preProcessForBallDetection(pinkPixels, src, new Scalar(125, 100, 30), new Scalar(255, 255, 255));
+        preProcessForBallDetection(pinkPixels, src, new Scalar(150, 120, 30), new Scalar(180, 255, 255));
 
         Mat circles = new Mat();
 
-        int minRadius = 10;
+        int minRadius = 2;
         int maxRadius = 50;
-        Imgproc.HoughCircles(pinkPixels, circles, Imgproc.CV_HOUGH_GRADIENT, 1, minRadius, 120, 10, minRadius, maxRadius);
+        /*Imgproc.HoughCircles(pinkPixels, circles, Imgproc.CV_HOUGH_GRADIENT, 1, minRadius, 120, 10, minRadius, maxRadius);
 
         if (circles.cols() != 0) {
             for (int x = 0; x < 1;x++) {
@@ -169,7 +166,51 @@ public class VideoController
                 // draw the circle outline
                 circle( src, center, radius, new Scalar(0,0,255), 3, 8, 0 );
             }
+        }*/
+
+        List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
+        Imgproc.findContours(pinkPixels, contours, new Mat(), Imgproc.RETR_LIST,Imgproc.CHAIN_APPROX_SIMPLE);
+
+        double maxArea = 0;
+        int i = -1;
+        int contoursMaxId = -1;
+        Iterator<MatOfPoint> each = contours.iterator();
+        while (each.hasNext()) {
+            i++;
+            MatOfPoint wrapper = each.next();
+            double area = Imgproc.contourArea(wrapper);
+            if (area > maxArea) {
+                maxArea = area;
+                contoursMaxId = i;
+            }
         }
+        if (maxArea > 20 && contoursMaxId != -1) {
+            MatOfPoint ball = contours.get(contoursMaxId);
+            Point firstPoint = ball.toArray()[contoursMaxId];
+            double leftPointX = firstPoint.x;
+            double rightPointX = firstPoint.x;
+            double bottomY = firstPoint.y;
+            double upperY = firstPoint.y;
+            for ( Point p : ball.toArray()) {
+                if (p.x > rightPointX) {
+                    rightPointX = p.x;
+                }
+                if (p.x < leftPointX) {
+                    leftPointX = p.x;
+                }
+                if (p.y > bottomY) {
+                    bottomY = p.y;
+                }
+                if (p.y < upperY) {
+                    upperY = p.y;
+                }
+            }
+            drawContours(src, contours, contoursMaxId, new Scalar(0,0,255));
+            Point middle = new Point((rightPointX + leftPointX) / 2, (bottomY + upperY) / 2);
+            //moveNao.followBall(middle,true);
+            circle(src, middle, 3,new Scalar(0,255,0), -1, 8, 0 );
+        }
+
         return src;
     }
 
