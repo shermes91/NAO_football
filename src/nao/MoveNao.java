@@ -7,7 +7,6 @@ import com.aldebaran.qi.helper.proxies.ALRobotPosture;
 import org.opencv.core.Point;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class MoveNao {
@@ -16,6 +15,8 @@ public class MoveNao {
     ALRobotPosture alRobotPosture;
     float x;
     float y;
+    boolean ballIsHorizontalMiddle;
+    boolean ballIsVerticalMiddle;
 
     public void shutdown() {
         System.out.println("Moving to Exitposition");
@@ -74,13 +75,13 @@ public class MoveNao {
         float speed = (float) 0.5;
         alMotion.setAngles(names, angles, speed);
         Thread.sleep(2000);
-        standUp();
+        //standUp();
         //moveForward();
         //alMotion.setStiffnesses("Head", 0);
 
     }
 
-    public void followBall(Point p, boolean foundObject) {
+    public boolean followBall(Point p, boolean foundObject) {
         this.x = (float) p.x;
         this.y = (float) p.y;
         //Mitte 160 : 120
@@ -88,11 +89,20 @@ public class MoveNao {
         float angley = (float) ((float) ((120-y)/120*23.5)*-1*Math.PI/360);
         if (x < 140) turnHeadRight();
         else if (x > 180) turnHeadLeft();
+        else ballIsHorizontalMiddle = true;
         if (y < 100|x > 140) turnHeadUpDown(angley);
-        guessdistance();
+        else ballIsVerticalMiddle = true;
+
+        guessDistance();
+
+        if (ballIsHorizontalMiddle && ballIsVerticalMiddle) {
+            moveForward();
+            //gehe zum Ball und return dass NAO beim Ball ist
+        }
+        return false;
     }
 
-    private void guessdistance() {
+    private void guessDistance() {
         List<Float> body = new ArrayList<>();
         List<String> names = new ArrayList<>();
         names.add("HeadYaw");
@@ -129,8 +139,6 @@ public class MoveNao {
             e.printStackTrace();
         }
     }
-
-
 
     private void turnHeadRight() {
         System.out.println("Turning Right");
