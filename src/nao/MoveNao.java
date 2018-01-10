@@ -114,7 +114,14 @@ public class MoveNao {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        float distance = calculateDistance(body.get(1));
+        float y_gegenkath = (float) (Math.sin(body.get(0))*distance);
+        float x_ankath= (float) (Math.cos(body.get(0))*distance);
          System.out.println(body);
+    }
+
+    private float calculateDistance(Float pitchAngle) {
+        return (float) (Math.tan(pitchAngle)*0.45);
     }
 
     private void turnHeadLeft() {
