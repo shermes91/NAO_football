@@ -21,11 +21,8 @@ import javafx.scene.image.ImageView;
 
 import static org.opencv.imgproc.Imgproc.*;
 
-public class VideoController
-{
-    public enum STAGE {
-        SEARCHBALL{public int y;public int x;}, SEARCHGOAL, ADJUSTTOSHOOT
-    }
+public class VideoController {
+
 
     @FXML
     private ImageView currentFrame;
@@ -41,19 +38,16 @@ public class VideoController
     ALVideoDevice video;
     private String NAO_CAMERA_NAME = "Nao Image";
     private String moduleName;
-    private STAGE stage = STAGE.SEARCHBALL;
 
     /**
      * Initialize method, automatically called by @{link FXMLLoader}
      */
-    public void initialize()
-    {
+    public void initialize() {
         this.capture = new VideoCapture();
         this.cameraActive = false;
-        try{
+        try {
             initNAO();
-        }
-        catch(Exception e) {
+        } catch (Exception e) {
             System.out.println(e.getStackTrace());
         }
 
@@ -61,15 +55,12 @@ public class VideoController
 
     /**
      * initialise to NAO Robot and get its camera interface
+     *
      * @throws Exception
      */
     protected void initNAO() throws Exception {
 
-        int topCamera = 0;
-        int bottomCamera = 1;
-        int resolution = 1; // 320x240
-        int colorspace = 13; // BGR
-        int frameRate = 30; // FPS
+
         com.aldebaran.qi.Application application;
 
         Session session = new Session();
@@ -83,17 +74,30 @@ public class VideoController
 
             video = new ALVideoDevice(session);
             moveNao = new MoveNao(session);
-            moduleName = video.subscribeCamera(NAO_CAMERA_NAME, topCamera, resolution, colorspace, frameRate);
+            moduleName = subscribeCamera(moveNao.stage);
             System.out.println(moduleName);
             getNaoFrames(video, moduleName);
 
-        } catch(Exception e) {
+        } catch (Exception e) {
 
         }
     }
 
+    private String subscribeCamera(MoveNao.STAGE stage) throws CallError, InterruptedException {
+        int topCamera = 0;
+        int bottomCamera = 1;
+        int resolution = 1; // 320x240
+        int colorspace = 13; // BGR
+        int frameRate = 30; // FPS
+        if (stage == MoveNao.STAGE.ADJUSTTOSHOOT)
+            return video.subscribeCamera(NAO_CAMERA_NAME, bottomCamera, resolution, colorspace, frameRate);
+        else
+            return video.subscribeCamera(NAO_CAMERA_NAME, topCamera, resolution, colorspace, frameRate);
+    }
+
     /**
      * Run thread to get frames from nao and convert it to Mat
+     *
      * @param alVideoDevice
      * @param subscribeCamera
      * @throws InterruptedException
@@ -122,16 +126,24 @@ public class VideoController
                 Mat image = new Mat((int) imageRemote.get(1), (int) imageRemote.get(0), CvType.CV_8UC3);
                 image.put(0, 0, b.array());
 
-                switch(stage) {
-                    case SEARCHBALL:
-                        image = detectCircle(image, pinkPixels);
-                        break;
-                    case SEARCHGOAL:
-                        image = detectGoal(image, yellowPixels);
-                        break;
-                    case ADJUSTTOSHOOT:
-                        break;
-                }
+                moveNao.moveForward();
+//                switch (moveNao.stage) {
+//                    case SEARCHBALL:
+//                        image = detectCircle(image, pinkPixels);
+//                        break;
+//                    case SEARCHGOAL:
+//                        try {
+//                            image = detectGoal(image, yellowPixels);
+//                        } catch (InterruptedException e) {
+//                            e.printStackTrace();
+//                        } catch (CallError callError) {
+//                            callError.printStackTrace();
+//                        }
+//                        break;
+//                    case ADJUSTTOSHOOT:
+//                        image = detectCircle(image, pinkPixels);
+//                        break;
+//                }
 
                 // convert and show the frame
                 Image imageToShow = Utils.mat2Image(image);
@@ -155,7 +167,7 @@ public class VideoController
         Core.inRange(pinkPixels, lowerP, upperP, pinkPixels);
     }
 
-    private Mat detectCircle(Mat src, Mat pinkPixels){
+    private Mat detectCircle(Mat src, Mat pinkPixels) {
 
         preProcessForBallDetection(pinkPixels, src, new Scalar(150, 120, 30), new Scalar(180, 255, 255));
 
@@ -180,7 +192,7 @@ public class VideoController
         }*/
 
         List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
-        Imgproc.findContours(pinkPixels, contours, new Mat(), Imgproc.RETR_LIST,Imgproc.CHAIN_APPROX_SIMPLE);
+        Imgproc.findContours(pinkPixels, contours, new Mat(), Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
 
         double maxArea = 0;
         int i = -1;
@@ -202,7 +214,7 @@ public class VideoController
             double rightPointX = firstPoint.x;
             double bottomY = firstPoint.y;
             double upperY = firstPoint.y;
-            for ( Point p : ball.toArray()) {
+            for (Point p : ball.toArray()) {
                 if (p.x > rightPointX) {
                     rightPointX = p.x;
                 }
@@ -216,37 +228,40 @@ public class VideoController
                     upperY = p.y;
                 }
             }
-            drawContours(src, contours, contoursMaxId, new Scalar(0,0,255));
+            drawContours(src, contours, contoursMaxId, new Scalar(0, 0, 255));
             Point middle = new Point((rightPointX + leftPointX) / 2, (bottomY + upperY) / 2);
 
-            if(moveNao.followTarget(middle, true)){
-                moveNao.moveForward();
-                stage = STAGE.SEARCHGOAL;
+            if (moveNao.followTarget(middle, true)) {
+                if (moveNao.stage == MoveNao.STAGE.SEARCHBALL) {
+                    moveNao.moveForward();
+                    moveNao.stage = MoveNao.STAGE.SEARCHGOAL;
+                    moveNao.guesscount = 0;
+                } else {
+                    moveNao.adjustNaoToShoot();
+                }
             }
-            circle(src, middle, 3,new Scalar(0,255,0), -1, 8, 0 );
+            circle(src, middle, 3, new Scalar(0, 255, 0), -1, 8, 0);
         }
 
         return src;
     }
 
-    private Mat detectGoal(Mat src, Mat yellowPixels){
+    private Mat detectGoal(Mat src, Mat yellowPixels) throws InterruptedException, CallError {
 
-        Imgproc.GaussianBlur(src, yellowPixels, new Size(9, 9), 0, 0);
+        Imgproc.GaussianBlur(src, yellowPixels, new Size(5, 5), 0, 0);
         Imgproc.cvtColor(yellowPixels, yellowPixels, Imgproc.COLOR_BGR2HSV);
 
-        Core.inRange(yellowPixels, new Scalar(20, 100, 100), new Scalar(30,255,255), yellowPixels);
+        Core.inRange(yellowPixels, new Scalar(20, 100, 100), new Scalar(30, 255, 255), yellowPixels);
 
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5, 5));
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
 
         Imgproc.dilate(yellowPixels, yellowPixels, kernel);
         Imgproc.dilate(yellowPixels, yellowPixels, kernel);
-        Imgproc.dilate(yellowPixels, yellowPixels, kernel);
-        Imgproc.erode(yellowPixels, yellowPixels, kernel);
         Imgproc.erode(yellowPixels, yellowPixels, kernel);
         Imgproc.erode(yellowPixels, yellowPixels, kernel);
 
         List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
-        Imgproc.findContours(yellowPixels, contours, new Mat(), Imgproc.RETR_LIST,Imgproc.CHAIN_APPROX_SIMPLE);
+        Imgproc.findContours(yellowPixels, contours, new Mat(), Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
 
         double maxArea = 0;
         int i = -1;
@@ -267,7 +282,7 @@ public class VideoController
             double leftPointX = firstPoint.x;
             double rightPointX = firstPoint.x;
             double bottomY = firstPoint.y;
-            for ( Point p : goal.toArray()) {
+            for (Point p : goal.toArray()) {
                 if (p.x > rightPointX) {
                     rightPointX = p.x;
                 }
@@ -278,11 +293,14 @@ public class VideoController
                     bottomY = p.y;
                 }
             }
-            drawContours(src, contours, contoursMaxId, new Scalar(0,0,255));
+            drawContours(src, contours, contoursMaxId, new Scalar(0, 0, 255));
             Point middle = new Point((rightPointX + leftPointX) / 2, bottomY);
-            circle(src, middle, 3,new Scalar(0,255,0), -1, 8, 0 );
-            if (moveNao.followTarget(middle,true)) {
-                
+            circle(src, middle, 3, new Scalar(0, 255, 0), -1, 8, 0);
+            if (moveNao.followTarget(middle, true)) {
+                video.unsubscribe(moduleName);
+                moveNao.stage = MoveNao.STAGE.ADJUSTTOSHOOT;
+                moveNao.guesscount = 0;
+                moduleName = subscribeCamera(moveNao.stage);
             }
         }
 
@@ -300,13 +318,10 @@ public class VideoController
     /**
      * Update the {@link ImageView} in the JavaFX main thread
      *
-     * @param view
-     *            the {@link ImageView} to update
-     * @param image
-     *            the {@link Image} to show
+     * @param view  the {@link ImageView} to update
+     * @param image the {@link Image} to show
      */
-    private void updateImageView(ImageView view, Image image)
-    {
+    private void updateImageView(ImageView view, Image image) {
         Utils.onFXThread(view.imageProperty(), image);
     }
 }

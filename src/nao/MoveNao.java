@@ -11,16 +11,43 @@ import java.util.List;
 
 public class MoveNao {
 
+    public void adjustNaoToShoot() {
+        System.out.println("AdjustingNaoToShoot");
+    }
+
+    public enum STAGE {
+        SEARCHBALL, SEARCHGOAL, ADJUSTTOSHOOT;
+        private float x = 0, y = 0;
+
+        STAGE() {
+            x = 0;
+            y = 0;
+        }
+
+        public float getx() {
+            return this.x;
+        }
+
+        public float gety() {
+            return this.x;
+        }
+
+        public void setx(float x) {
+            this.x = x;
+        }
+
+        public void sety(float y) {
+            this.y = y;
+        }
+    }
+
     ALMotion alMotion;
     ALRobotPosture alRobotPosture;
-    float x;
-    float y;
+    public STAGE stage = STAGE.SEARCHBALL;
     boolean targetIsHorizontalMiddle;
     boolean targetIsVerticalMiddle;
-    float y_gegenkath;
-    float x_ankath;
-    boolean neverMoved = true;
-    int guesscount = 0;
+
+    public int guesscount = 0;
 
     public void shutdown() {
         System.out.println("Moving to Exitposition");
@@ -86,15 +113,15 @@ public class MoveNao {
     }
 
     public boolean followTarget(Point p, boolean foundObject) {
-        this.x = (float) p.x;
-        this.y = (float) p.y;
+        stage.x = (float) p.x;
+        stage.y = (float) p.y;
         //Mitte 160 : 120
-        float anglex = Math.abs(x) - 160;
-        float angley = (float) ((float) ((120 - y) / 120 * 23.5) * -1 * Math.PI / 360);
-        if (x < 140) turnHeadRight();
-        else if (x > 180) turnHeadLeft();
+        float anglex = Math.abs(stage.x) - 160;
+        float angley = (float) ((float) ((120 - stage.y) / 120 * 23.5) * -1 * Math.PI / 360);
+        if (stage.x < 140) turnHeadRight();
+        else if (stage.x > 180) turnHeadLeft();
         else targetIsHorizontalMiddle = true;
-        if (y < 115 | y > 125) turnHeadUpDown(angley);
+        if (stage.y < 115 | stage.y > 125) turnHeadUpDown(angley);
         else targetIsVerticalMiddle = true;
         if (targetIsHorizontalMiddle && targetIsVerticalMiddle) {
             guessDistance();
@@ -120,19 +147,34 @@ public class MoveNao {
             e.printStackTrace();
         }
         float distance = 0;
-        System.out.println("Yaw: " + body.get(0));
-        System.out.println("Pitch: " + body.get(1));
-        distance = calculateDistance(body.get(1));
+        Float bodyPitch = body.get(1);
+        System.out.println("Pitch: " + bodyPitch);
+        if (stage == STAGE.ADJUSTTOSHOOT)
+            distance = calculateDistanceLowerCamera(bodyPitch);
+        else
+            distance = calculateDistanceUpperCamera(bodyPitch);
         System.out.println("Distance: " + distance);
-        y_gegenkath = (float) (Math.sin(body.get(0)) * distance);
-        x_ankath = (float) (Math.cos(body.get(0)) * distance);
-        System.out.println("An: " + x_ankath);
-        System.out.println("Gegen: " + y_gegenkath);
+        stage.y = (float) (Math.sin(body.get(0)) * distance);
+        stage.x = (float) (Math.cos(body.get(0)) * distance);
+        System.out.println("An: " + stage.x);
+        System.out.println("Gegen: " + stage.y);
 
     }
 
-    private float calculateDistance(Float pitchAngle) {
-        return (float) (Math.tan(Math.PI / 2 - pitchAngle - 0.13) * 0.45);
+    private float calculateDistanceUpperCamera(float pitchAngle) {
+        System.out.println("TOP");
+        System.out.println("Pitch: " + pitchAngle);
+        double v = Math.tan(Math.PI / 2 - (pitchAngle + (float) 0.12)) * 0.49;
+        System.out.println("Ergebnis: " + v);
+        return (float) v;
+    }
+
+    private float calculateDistanceLowerCamera(float pitchAngle) {
+        System.out.println("BOT");
+        System.out.println("Pitch: " + pitchAngle);
+        double v = Math.tan(Math.PI / 2 + (pitchAngle - (float) 0.52)) * 0.465;
+        System.out.println("Ergebnis: " + v);
+        return (float) v;
     }
 
     private void turnHeadLeft() {
@@ -181,14 +223,21 @@ public class MoveNao {
     }
 
     public void moveForward() {
+        System.out.println("Moving");
+        System.out.println("x: "+stage.x+" y: "+stage.y);
         try {
-            if (neverMoved)
-                alMotion.moveTo(x_ankath, y_gegenkath, (float) 0);
+            alMotion.moveTo(stage.x, stage.y, (float) 0);
+//                        alMotion.moveTo(stage.x, stage.y, (float) 0);
+
         } catch (CallError callError) {
             callError.printStackTrace();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    public void moveToAdjustment(){
+
     }
 
 
