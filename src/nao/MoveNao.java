@@ -15,8 +15,12 @@ public class MoveNao {
     ALRobotPosture alRobotPosture;
     float x;
     float y;
-    boolean ballIsHorizontalMiddle;
-    boolean ballIsVerticalMiddle;
+    boolean targetIsHorizontalMiddle;
+    boolean targetIsVerticalMiddle;
+    float y_gegenkath;
+    float x_ankath;
+    boolean neverMoved = true;
+    int guesscount = 0;
 
     public void shutdown() {
         System.out.println("Moving to Exitposition");
@@ -75,34 +79,35 @@ public class MoveNao {
         float speed = (float) 0.5;
         alMotion.setAngles(names, angles, speed);
         Thread.sleep(2000);
-        //standUp();
+        standUp();
         //moveForward();
         //alMotion.setStiffnesses("Head", 0);
 
     }
 
-    public boolean followBall(Point p, boolean foundObject) {
+    public boolean followTarget(Point p, boolean foundObject) {
         this.x = (float) p.x;
         this.y = (float) p.y;
         //Mitte 160 : 120
         float anglex = Math.abs(x) - 160;
-        float angley = (float) ((float) ((120-y)/120*23.5)*-1*Math.PI/360);
+        float angley = (float) ((float) ((120 - y) / 120 * 23.5) * -1 * Math.PI / 360);
         if (x < 140) turnHeadRight();
         else if (x > 180) turnHeadLeft();
-        else ballIsHorizontalMiddle = true;
-        if (y < 100|x > 140) turnHeadUpDown(angley);
-        else ballIsVerticalMiddle = true;
-
-        guessDistance();
-
-        if (ballIsHorizontalMiddle && ballIsVerticalMiddle) {
-            moveForward();
-            //gehe zum Ball und return dass NAO beim Ball ist
+        else targetIsHorizontalMiddle = true;
+        if (y < 115 | y > 125) turnHeadUpDown(angley);
+        else targetIsVerticalMiddle = true;
+        if (targetIsHorizontalMiddle && targetIsVerticalMiddle) {
+            guessDistance();
+            guesscount++;
+            if (guesscount == 15) {
+                return true;
+            }
         }
         return false;
     }
 
     private void guessDistance() {
+
         List<Float> body = new ArrayList<>();
         List<String> names = new ArrayList<>();
         names.add("HeadYaw");
@@ -114,14 +119,20 @@ public class MoveNao {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        float distance = calculateDistance(body.get(1));
-        float y_gegenkath = (float) (Math.sin(body.get(0))*distance);
-        float x_ankath= (float) (Math.cos(body.get(0))*distance);
-         System.out.println(body);
+        float distance = 0;
+        System.out.println("Yaw: " + body.get(0));
+        System.out.println("Pitch: " + body.get(1));
+        distance = calculateDistance(body.get(1));
+        System.out.println("Distance: " + distance);
+        y_gegenkath = (float) (Math.sin(body.get(0)) * distance);
+        x_ankath = (float) (Math.cos(body.get(0)) * distance);
+        System.out.println("An: " + x_ankath);
+        System.out.println("Gegen: " + y_gegenkath);
+
     }
 
     private float calculateDistance(Float pitchAngle) {
-        return (float) (Math.tan(pitchAngle)*0.45);
+        return (float) (Math.tan(Math.PI / 2 - pitchAngle - 0.13) * 0.45);
     }
 
     private void turnHeadLeft() {
@@ -171,7 +182,8 @@ public class MoveNao {
 
     public void moveForward() {
         try {
-            alMotion.moveTo((float) 1.20, (float) 0, (float) 0);
+            if (neverMoved)
+                alMotion.moveTo(x_ankath, y_gegenkath, (float) 0);
         } catch (CallError callError) {
             callError.printStackTrace();
         } catch (InterruptedException e) {

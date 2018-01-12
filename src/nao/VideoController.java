@@ -72,7 +72,7 @@ public class VideoController
         application = new com.aldebaran.qi.Application(strings);
         try {
 
-            String robotIp = "192.168.1.6";
+            String robotIp = "192.168.1.10";
 
             session.connect("tcp://" + robotIp + ":9559").sync(500, TimeUnit.MILLISECONDS);
 
@@ -117,10 +117,10 @@ public class VideoController
                 Mat image = new Mat((int) imageRemote.get(1), (int) imageRemote.get(0), CvType.CV_8UC3);
                 image.put(0, 0, b.array());
 
-                image = detectCircle(image, pinkPixels);
+                //image = detectCircle(image, pinkPixels);
 
-                image = detectGoal(image, yellowPixels);
-                image = detectCircle(image, pinkPixels);
+                //image = detectGoal(image, yellowPixels);
+                image = detectCircle(image, pinkPixels, yellowPixels);
 
                 // convert and show the frame
                 Image imageToShow = Utils.mat2Image(image);
@@ -129,7 +129,7 @@ public class VideoController
             }
         };
         this.timer = Executors.newSingleThreadScheduledExecutor();
-        this.timer.scheduleAtFixedRate(frameGrabber, 0, 100, TimeUnit.MILLISECONDS);
+        this.timer.scheduleAtFixedRate(frameGrabber, 0, 500, TimeUnit.MILLISECONDS);
     }
 
     private void preProcessForBallDetection(Mat pinkPixels, Mat image, Scalar lowerP, Scalar upperP) {
@@ -144,7 +144,7 @@ public class VideoController
         Core.inRange(pinkPixels, lowerP, upperP, pinkPixels);
     }
 
-    private Mat detectCircle(Mat src, Mat pinkPixels){
+    private Mat detectCircle(Mat src, Mat pinkPixels, Mat yellowPixels){
 
         preProcessForBallDetection(pinkPixels, src, new Scalar(150, 120, 30), new Scalar(180, 255, 255));
 
@@ -207,7 +207,10 @@ public class VideoController
             }
             drawContours(src, contours, contoursMaxId, new Scalar(0,0,255));
             Point middle = new Point((rightPointX + leftPointX) / 2, (bottomY + upperY) / 2);
-            //moveNao.followBall(middle,true);
+            if(moveNao.followTarget(middle, true)){
+                moveNao.moveForward();
+                detectGoal(src, yellowPixels);
+            }
             circle(src, middle, 3,new Scalar(0,255,0), -1, 8, 0 );
         }
 
@@ -265,8 +268,8 @@ public class VideoController
             }
             drawContours(src, contours, contoursMaxId, new Scalar(0,0,255));
             Point middle = new Point((rightPointX + leftPointX) / 2, bottomY);
-            //moveNao.followBall(middle,true);
             circle(src, middle, 3,new Scalar(0,255,0), -1, 8, 0 );
+            moveNao.followTarget(middle,true);
         }
 
         return src;
