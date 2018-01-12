@@ -23,6 +23,10 @@ import static org.opencv.imgproc.Imgproc.*;
 
 public class VideoController
 {
+    public enum STAGE {
+        SEARCHBALL{public int y;public int x;}, SEARCHGOAL, ADJUSTTOSHOOT
+    }
+
     @FXML
     private ImageView currentFrame;
     private MoveNao moveNao;
@@ -37,6 +41,7 @@ public class VideoController
     ALVideoDevice video;
     private String NAO_CAMERA_NAME = "Nao Image";
     private String moduleName;
+    private STAGE stage = STAGE.SEARCHBALL;
 
     /**
      * Initialize method, automatically called by @{link FXMLLoader}
@@ -117,10 +122,16 @@ public class VideoController
                 Mat image = new Mat((int) imageRemote.get(1), (int) imageRemote.get(0), CvType.CV_8UC3);
                 image.put(0, 0, b.array());
 
-                //image = detectCircle(image, pinkPixels);
-
-                //image = detectGoal(image, yellowPixels);
-                image = detectCircle(image, pinkPixels, yellowPixels);
+                switch(stage) {
+                    case SEARCHBALL:
+                        image = detectCircle(image, pinkPixels);
+                        break;
+                    case SEARCHGOAL:
+                        image = detectGoal(image, yellowPixels);
+                        break;
+                    case ADJUSTTOSHOOT:
+                        break;
+                }
 
                 // convert and show the frame
                 Image imageToShow = Utils.mat2Image(image);
@@ -144,7 +155,7 @@ public class VideoController
         Core.inRange(pinkPixels, lowerP, upperP, pinkPixels);
     }
 
-    private Mat detectCircle(Mat src, Mat pinkPixels, Mat yellowPixels){
+    private Mat detectCircle(Mat src, Mat pinkPixels){
 
         preProcessForBallDetection(pinkPixels, src, new Scalar(150, 120, 30), new Scalar(180, 255, 255));
 
@@ -207,9 +218,10 @@ public class VideoController
             }
             drawContours(src, contours, contoursMaxId, new Scalar(0,0,255));
             Point middle = new Point((rightPointX + leftPointX) / 2, (bottomY + upperY) / 2);
+
             if(moveNao.followTarget(middle, true)){
                 moveNao.moveForward();
-                detectGoal(src, yellowPixels);
+                stage = STAGE.SEARCHGOAL;
             }
             circle(src, middle, 3,new Scalar(0,255,0), -1, 8, 0 );
         }
@@ -269,7 +281,9 @@ public class VideoController
             drawContours(src, contours, contoursMaxId, new Scalar(0,0,255));
             Point middle = new Point((rightPointX + leftPointX) / 2, bottomY);
             circle(src, middle, 3,new Scalar(0,255,0), -1, 8, 0 );
-            moveNao.followTarget(middle,true);
+            if (moveNao.followTarget(middle,true)) {
+                
+            }
         }
 
         return src;
