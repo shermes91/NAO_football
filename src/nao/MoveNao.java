@@ -12,7 +12,7 @@ import java.util.List;
 public class MoveNao {
 
 
-    private  boolean nevermoved = true;
+    private boolean nevermoved = true;
 
     public enum STAGE {
         SEARCHBALL, SEARCHGOAL, ADJUSTTOSHOOT;
@@ -46,6 +46,9 @@ public class MoveNao {
     boolean targetIsHorizontalMiddle;
     boolean targetIsVerticalMiddle;
     STAGE stagebuffer;
+    List<Float> body = new ArrayList<>();
+    float adjustedX, adjustedY, angle;
+
 
     public int guesscount = 0;
 
@@ -89,11 +92,30 @@ public class MoveNao {
         System.out.println("MOVE HEAD");
         alMotion = new ALMotion(session);
         alRobotPosture = new ALRobotPosture(session);
-        Object[] config = new Object[1];
 
         alMotion.clearStats();
         alMotion.moveInit();
         alMotion.setStiffnesses("Head", 1.0);
+        ArrayList<String> values = new ArrayList<>();
+        ArrayList<Object> config = new ArrayList<>();
+        values.add("ENABLE_FOOT_CONTACT_PROTECTION");
+        values.add("False");
+        config.add(values);
+        alMotion.setMotionConfig(config);
+        values = new ArrayList<>();
+        config = new ArrayList<>();
+        alMotion.setExternalCollisionProtectionEnabled("All", false);
+        alMotion.setOrthogonalSecurityDistance((float) 0);
+        alMotion.setTangentialSecurityDistance((float) 0);
+        resetHeadPosition();
+        Thread.sleep(2000);
+        standUp();
+//        moveForward();
+        //alMotion.setStiffnesses("Head", 0);
+
+    }
+
+    public void resetHeadPosition() throws CallError, InterruptedException {
         ArrayList<String> names = new ArrayList<>();
         names.add("HeadYaw");
         names.add("HeadPitch");
@@ -102,11 +124,6 @@ public class MoveNao {
         angles.add((float) 0);
         float speed = (float) 0.5;
         alMotion.setAngles(names, angles, speed);
-        Thread.sleep(2000);
-        standUp();
-//        moveForward();
-        //alMotion.setStiffnesses("Head", 0);
-
     }
 
     public boolean followTarget(Point p, boolean foundObject) {
@@ -115,11 +132,18 @@ public class MoveNao {
         //Mitte 160 : 120
         float anglex = Math.abs(stage.x) - 160;
         float angley = (float) ((float) ((120 - stage.y) / 120 * 23.5) * -1 * Math.PI / 360);
-        if (stage.x < 140) turnHeadRight();
-        else if (stage.x > 180) turnHeadLeft();
-        else targetIsHorizontalMiddle = true;
-        if (stage.y < 115 | stage.y > 125) turnHeadUpDown(angley);
-        else targetIsVerticalMiddle = true;
+        if (stage.x < 140) {
+            turnHeadRight();
+            targetIsHorizontalMiddle = false;
+
+        } else if (stage.x > 180) {
+            turnHeadLeft();
+            targetIsHorizontalMiddle = false;
+        } else targetIsHorizontalMiddle = true;
+        if (stage.y < 115 | stage.y > 125) {
+            turnHeadUpDown(angley);
+            targetIsVerticalMiddle = false;
+        } else targetIsVerticalMiddle = true;
         if (targetIsHorizontalMiddle && targetIsVerticalMiddle) {
             guessDistance();
             guesscount++;
@@ -134,7 +158,7 @@ public class MoveNao {
 
     private void guessDistance() {
 
-        List<Float> body = new ArrayList<>();
+
         List<String> names = new ArrayList<>();
         names.add("HeadYaw");
         names.add("HeadPitch");
@@ -155,6 +179,10 @@ public class MoveNao {
         System.out.println("Distance: " + distance);
         stage.y = (float) (Math.sin(body.get(0)) * distance);
         stage.x = (float) (Math.cos(body.get(0)) * distance);
+        if (stage == STAGE.SEARCHBALL) {
+            stage.y *= 0.85;
+            stage.x *= 0.65;
+        }
         System.out.println("An: " + stage.x);
         System.out.println("Gegen: " + stage.y);
 
@@ -171,7 +199,7 @@ public class MoveNao {
     private float calculateDistanceLowerCamera(float pitchAngle) {
         System.out.println("BOT");
         System.out.println("Pitch: " + pitchAngle);
-        double v = Math.tan(Math.PI / 2 + (pitchAngle - (float) 0.52)) * 0.465;
+        double v = Math.tan(Math.PI / 2 - (pitchAngle + (float) 0.65)) * 0.465;
         System.out.println("Ergebnis: " + v);
         return (float) v;
     }
@@ -223,13 +251,9 @@ public class MoveNao {
 
     public void moveForward() {
         try {
-            if (nevermoved) {
-                System.out.println("Moving");
-                System.out.println("x: " + stage.x + " y: " + stage.y);
-                alMotion.moveTo((float) 1, (float) 0, (float) 0);
-                nevermoved = false;
-            }
-//                        alMotion.moveTo(stage.x, stage.y, (float) 0);
+            System.out.println("Moving");
+            System.out.println("x: " + stage.x + " y: " + stage.y);
+            alMotion.moveTo(stage.x, stage.y, body.get(0));
         } catch (CallError callError) {
             callError.printStackTrace();
         } catch (InterruptedException e) {
@@ -239,21 +263,35 @@ public class MoveNao {
 
     public void moveToAdjustment() {
         calculateAdjustmentMark();
+        try {
+            System.out.println("Moving");
+            System.out.println("x: " + adjustedX + " y: " + adjustedY);
+            alMotion.moveTo(adjustedX, adjustedY, angle);
+        } catch (CallError callError) {
+            callError.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
     }
 
     private void calculateAdjustmentMark() {
         System.out.println("AdjustingNaoToShoot");
         float vectorX, vectorY;
-        vectorX = stage.x - stagebuffer.x;
-        vectorY = stage.y - stagebuffer.y;
+
+        System.out.println("Original Ball  X: " + stage.x + " Y: " + stage.y);
+        System.out.println("Original Goalcoord  X: " + stagebuffer.x + " Y: " + stagebuffer.y);
+
+        vectorX = stagebuffer.x - stage.x;
+        vectorY = stagebuffer.y - stage.y;
         double magnitude = Math.sqrt(Math.pow(vectorX, 2) + Math.pow(vectorY, 2));
+        System.out.println("X: " + vectorX + " Y: " + vectorY);
         vectorX /= magnitude;
         vectorY /= magnitude;
-        float adjustedX, adjustedY;
-        adjustedX = (float) (stagebuffer.x - (vectorX * 0.1));
-        adjustedY = (float) (stagebuffer.y - (vectorY * 0.1));
-        System.out.println("AdjustedX: " + adjustedX + " AdjustedY: " + adjustedY);
+        System.out.println("Normed_ X: " + vectorX + " Y: " + vectorY);
+        adjustedX = (float) (stage.x - (vectorX * 0.3));
+        adjustedY = (float) (stage.y - (vectorY * 0.3));
+        angle = (float) ( - body.get(0));
+        System.out.println("AdjustedX: " + adjustedX + " AdjustedY: " + adjustedY+" Angle: "+ angle);
     }
-
-
 }

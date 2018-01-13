@@ -68,7 +68,7 @@ public class VideoController {
         application = new com.aldebaran.qi.Application(strings);
         try {
 
-            String robotIp = "192.168.1.7";
+            String robotIp = "192.168.1.2";
 
             session.connect("tcp://" + robotIp + ":9559").sync(500, TimeUnit.MILLISECONDS);
             video = new ALVideoDevice(session);
@@ -234,6 +234,13 @@ public class VideoController {
                 if (moveNao.stage == MoveNao.STAGE.SEARCHBALL) {
                     moveNao.moveForward();
                     moveNao.stage = MoveNao.STAGE.SEARCHGOAL;
+                    try {
+                        moveNao.resetHeadPosition();
+                    } catch (CallError callError) {
+                        callError.printStackTrace();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                     moveNao.guesscount = 0;
                 } else {
                     moveNao.moveToAdjustment();
@@ -250,7 +257,7 @@ public class VideoController {
         Imgproc.GaussianBlur(src, yellowPixels, new Size(5, 5), 0, 0);
         Imgproc.cvtColor(yellowPixels, yellowPixels, Imgproc.COLOR_BGR2HSV);
 
-        Core.inRange(yellowPixels, new Scalar(20, 100, 100), new Scalar(30, 255, 255), yellowPixels);
+        Core.inRange(yellowPixels, new Scalar(65,60,60), new Scalar(80, 255, 255), yellowPixels);
 
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
 
