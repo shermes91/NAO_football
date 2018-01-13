@@ -68,10 +68,9 @@ public class VideoController {
         application = new com.aldebaran.qi.Application(strings);
         try {
 
-            String robotIp = "192.168.1.10";
+            String robotIp = "192.168.1.7";
 
             session.connect("tcp://" + robotIp + ":9559").sync(500, TimeUnit.MILLISECONDS);
-
             video = new ALVideoDevice(session);
             moveNao = new MoveNao(session);
             moduleName = subscribeCamera(moveNao.stage);
@@ -79,7 +78,7 @@ public class VideoController {
             getNaoFrames(video, moduleName);
 
         } catch (Exception e) {
-
+            e.printStackTrace();
         }
     }
 
@@ -126,24 +125,24 @@ public class VideoController {
                 Mat image = new Mat((int) imageRemote.get(1), (int) imageRemote.get(0), CvType.CV_8UC3);
                 image.put(0, 0, b.array());
 
-                moveNao.moveForward();
-//                switch (moveNao.stage) {
-//                    case SEARCHBALL:
-//                        image = detectCircle(image, pinkPixels);
-//                        break;
-//                    case SEARCHGOAL:
-//                        try {
-//                            image = detectGoal(image, yellowPixels);
-//                        } catch (InterruptedException e) {
-//                            e.printStackTrace();
-//                        } catch (CallError callError) {
-//                            callError.printStackTrace();
-//                        }
-//                        break;
-//                    case ADJUSTTOSHOOT:
-//                        image = detectCircle(image, pinkPixels);
-//                        break;
-//                }
+
+                switch (moveNao.stage) {
+                    case SEARCHBALL:
+                        image = detectCircle(image, pinkPixels);
+                        break;
+                    case SEARCHGOAL:
+                        try {
+                            image = detectGoal(image, yellowPixels);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        } catch (CallError callError) {
+                            callError.printStackTrace();
+                        }
+                        break;
+                    case ADJUSTTOSHOOT:
+                        image = detectCircle(image, pinkPixels);
+                        break;
+                }
 
                 // convert and show the frame
                 Image imageToShow = Utils.mat2Image(image);
@@ -237,7 +236,7 @@ public class VideoController {
                     moveNao.stage = MoveNao.STAGE.SEARCHGOAL;
                     moveNao.guesscount = 0;
                 } else {
-                    moveNao.adjustNaoToShoot();
+                    moveNao.moveToAdjustment();
                 }
             }
             circle(src, middle, 3, new Scalar(0, 255, 0), -1, 8, 0);

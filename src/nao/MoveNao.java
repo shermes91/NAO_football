@@ -11,9 +11,8 @@ import java.util.List;
 
 public class MoveNao {
 
-    public void adjustNaoToShoot() {
-        System.out.println("AdjustingNaoToShoot");
-    }
+
+    private  boolean nevermoved = true;
 
     public enum STAGE {
         SEARCHBALL, SEARCHGOAL, ADJUSTTOSHOOT;
@@ -46,6 +45,7 @@ public class MoveNao {
     public STAGE stage = STAGE.SEARCHBALL;
     boolean targetIsHorizontalMiddle;
     boolean targetIsVerticalMiddle;
+    STAGE stagebuffer;
 
     public int guesscount = 0;
 
@@ -84,16 +84,13 @@ public class MoveNao {
 
     }
 
-    public enum Direction {
-        LEFT, RIGHT, UP, DOWN
-    }
-
-    ;
 
     public MoveNao(Session session) throws Exception {
         System.out.println("MOVE HEAD");
         alMotion = new ALMotion(session);
         alRobotPosture = new ALRobotPosture(session);
+        Object[] config = new Object[1];
+
         alMotion.clearStats();
         alMotion.moveInit();
         alMotion.setStiffnesses("Head", 1.0);
@@ -107,7 +104,7 @@ public class MoveNao {
         alMotion.setAngles(names, angles, speed);
         Thread.sleep(2000);
         standUp();
-        //moveForward();
+//        moveForward();
         //alMotion.setStiffnesses("Head", 0);
 
     }
@@ -127,6 +124,8 @@ public class MoveNao {
             guessDistance();
             guesscount++;
             if (guesscount == 15) {
+                if (stage == STAGE.SEARCHGOAL)
+                    stagebuffer = stage;
                 return true;
             }
         }
@@ -223,12 +222,14 @@ public class MoveNao {
     }
 
     public void moveForward() {
-        System.out.println("Moving");
-        System.out.println("x: "+stage.x+" y: "+stage.y);
         try {
-            alMotion.moveTo(stage.x, stage.y, (float) 0);
+            if (nevermoved) {
+                System.out.println("Moving");
+                System.out.println("x: " + stage.x + " y: " + stage.y);
+                alMotion.moveTo((float) 1, (float) 0, (float) 0);
+                nevermoved = false;
+            }
 //                        alMotion.moveTo(stage.x, stage.y, (float) 0);
-
         } catch (CallError callError) {
             callError.printStackTrace();
         } catch (InterruptedException e) {
@@ -236,8 +237,22 @@ public class MoveNao {
         }
     }
 
-    public void moveToAdjustment(){
+    public void moveToAdjustment() {
+        calculateAdjustmentMark();
+    }
 
+    private void calculateAdjustmentMark() {
+        System.out.println("AdjustingNaoToShoot");
+        float vectorX, vectorY;
+        vectorX = stage.x - stagebuffer.x;
+        vectorY = stage.y - stagebuffer.y;
+        double magnitude = Math.sqrt(Math.pow(vectorX, 2) + Math.pow(vectorY, 2));
+        vectorX /= magnitude;
+        vectorY /= magnitude;
+        float adjustedX, adjustedY;
+        adjustedX = (float) (stagebuffer.x - (vectorX * 0.1));
+        adjustedY = (float) (stagebuffer.y - (vectorY * 0.1));
+        System.out.println("AdjustedX: " + adjustedX + " AdjustedY: " + adjustedY);
     }
 
 
