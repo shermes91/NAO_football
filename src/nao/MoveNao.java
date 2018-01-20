@@ -89,38 +89,35 @@ public class MoveNao {
 
 
     public MoveNao(Session session) throws Exception {
-        System.out.println("MOVE HEAD");
         alMotion = new ALMotion(session);
         alRobotPosture = new ALRobotPosture(session);
 
         alMotion.clearStats();
         alMotion.moveInit();
-        alMotion.setStiffnesses("Head", 1.0);
+
         ArrayList<String> values = new ArrayList<>();
         ArrayList<Object> config = new ArrayList<>();
+
         values.add("ENABLE_FOOT_CONTACT_PROTECTION");
         values.add("False");
+
         config.add(values);
         alMotion.setMotionConfig(config);
-        values = new ArrayList<>();
-        values = new ArrayList<>();
-        config = new ArrayList<>();
         alMotion.setExternalCollisionProtectionEnabled("All", false);
         alMotion.setOrthogonalSecurityDistance((float) 0);
         alMotion.setTangentialSecurityDistance((float) 0);
+
         resetHeadPosition();
         Thread.sleep(2000);
         standUp();
-//        moveForward();
-        //alMotion.setStiffnesses("Head", 0);
-
     }
 
     public void resetHeadPosition() throws CallError, InterruptedException {
+        alMotion.setStiffnesses("Head", 1.0);
         ArrayList<String> names = new ArrayList<>();
+        ArrayList<Float> angles = new ArrayList<>();
         names.add("HeadYaw");
         names.add("HeadPitch");
-        ArrayList<Float> angles = new ArrayList<>();
         angles.add((float) 0);
         angles.add((float) 0);
         float speed = (float) 0.5;
