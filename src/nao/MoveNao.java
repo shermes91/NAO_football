@@ -15,7 +15,7 @@ public class MoveNao {
     private boolean nevermoved = true;
 
     public enum STAGE {
-        SEARCHBALL, SEARCHGOAL, ADJUSTTOSHOOT;
+        SEARCHBALL, SEARCHGOAL, ADJUSTTOSHOOT, SHOOT;
         private float x = 0, y = 0;
 
         STAGE() {
@@ -103,6 +103,7 @@ public class MoveNao {
         config.add(values);
         alMotion.setMotionConfig(config);
         values = new ArrayList<>();
+        values = new ArrayList<>();
         config = new ArrayList<>();
         alMotion.setExternalCollisionProtectionEnabled("All", false);
         alMotion.setOrthogonalSecurityDistance((float) 0);
@@ -181,7 +182,7 @@ public class MoveNao {
         stage.x = (float) (Math.cos(body.get(0)) * distance);
         if (stage == STAGE.SEARCHBALL) {
             stage.y *= 0.85;
-            stage.x *= 0.65;
+            stage.x *= 0.85;
         }
         System.out.println("An: " + stage.x);
         System.out.println("Gegen: " + stage.y);
@@ -266,7 +267,8 @@ public class MoveNao {
         try {
             System.out.println("Moving");
             System.out.println("x: " + adjustedX + " y: " + adjustedY);
-            alMotion.moveTo(adjustedX, adjustedY, angle);
+            alMotion.moveTo(adjustedX, adjustedY, (float) angle);
+            alMotion.moveTo((float) 0.4, (float) 0, (float) 0);
         } catch (CallError callError) {
             callError.printStackTrace();
         } catch (InterruptedException e) {
@@ -291,7 +293,7 @@ public class MoveNao {
         System.out.println("Normed_ X: " + vectorX + " Y: " + vectorY);
         adjustedX = (float) (stage.x - (vectorX * 0.3));
         adjustedY = (float) (stage.y - (vectorY * 0.3));
-        angle = (float) ( - body.get(0));
-        System.out.println("AdjustedX: " + adjustedX + " AdjustedY: " + adjustedY+" Angle: "+ angle);
+        angle = (float) (-body.get(0));
+        System.out.println("AdjustedX: " + adjustedX + " AdjustedY: " + adjustedY + " Angle: " + angle);
     }
 }

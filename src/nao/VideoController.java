@@ -68,7 +68,7 @@ public class VideoController {
         application = new com.aldebaran.qi.Application(strings);
         try {
 
-            String robotIp = "192.168.1.2";
+            String robotIp = "192.168.1.6";
 
             session.connect("tcp://" + robotIp + ":9559").sync(500, TimeUnit.MILLISECONDS);
             video = new ALVideoDevice(session);
@@ -125,8 +125,14 @@ public class VideoController {
                 Mat image = new Mat((int) imageRemote.get(1), (int) imageRemote.get(0), CvType.CV_8UC3);
                 image.put(0, 0, b.array());
 
-
-                switch (moveNao.stage) {
+                try {
+                    image = detectGoal(image, yellowPixels);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (CallError callError) {
+                    callError.printStackTrace();
+                }
+                /*switch (moveNao.stage) {
                     case SEARCHBALL:
                         image = detectCircle(image, pinkPixels);
                         break;
@@ -142,10 +148,10 @@ public class VideoController {
                     case ADJUSTTOSHOOT:
                         image = detectCircle(image, pinkPixels);
                         break;
-                }
+                }*/
 
                 // convert and show the frame
-                Image imageToShow = Utils.mat2Image(image);
+                Image imageToShow = Utils.mat2Image(yellowPixels);
                 updateImageView(currentFrame, imageToShow);
 
             }
@@ -257,7 +263,8 @@ public class VideoController {
         Imgproc.GaussianBlur(src, yellowPixels, new Size(5, 5), 0, 0);
         Imgproc.cvtColor(yellowPixels, yellowPixels, Imgproc.COLOR_BGR2HSV);
 
-        Core.inRange(yellowPixels, new Scalar(65,60,60), new Scalar(80, 255, 255), yellowPixels);
+//        Core.inRange(yellowPixels, new Scalar(65, 60, 60), new Scalar(80, 255, 255), yellowPixels);
+        Core.inRange(yellowPixels, new Scalar(20,100,100), new Scalar(30, 255, 255), yellowPixels);
 
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
 
