@@ -148,7 +148,7 @@ public class MoveNao {
         if (targetIsHorizontalMiddle && targetIsVerticalMiddle) {
             guessDistance();
             guesscount++;
-            if (guesscount == 15) {
+            if (guesscount == 10) {
                 if (stage == STAGE.SEARCHGOAL)
                     stagebuffer = stage;
                 return true;
@@ -181,8 +181,8 @@ public class MoveNao {
         stage.y = (float) (Math.sin(body.get(0)) * distance);
         stage.x = (float) (Math.cos(body.get(0)) * distance);
         if (stage == STAGE.SEARCHBALL) {
-            stage.y *= 0.85;
-            stage.x *= 0.85;
+            stage.y *= 0.7;
+            stage.x *= 0.7;
         }
         System.out.println("An: " + stage.x);
         System.out.println("Gegen: " + stage.y);
@@ -205,7 +205,7 @@ public class MoveNao {
         return (float) v;
     }
 
-    private void turnHeadLeft() {
+    public void turnHeadLeft() {
         System.out.println("Turning Left");
         try {
             alMotion.changeAngles("HeadYaw", -0.05, (float) 0.05);
@@ -228,7 +228,7 @@ public class MoveNao {
         }
     }
 
-    private void turnHeadRight() {
+    public void turnHeadRight() {
         System.out.println("Turning Right");
         try {
             alMotion.changeAngles("HeadYaw", 0.05, (float) 0.05);
@@ -267,7 +267,8 @@ public class MoveNao {
         try {
             System.out.println("Moving");
             System.out.println("x: " + adjustedX + " y: " + adjustedY);
-            alMotion.moveTo(adjustedX, adjustedY, (float) angle);
+            alMotion.moveTo(adjustedX, adjustedY, (float) 0);
+            alMotion.moveTo((float)0, (float)0, (float) angle);
             alMotion.moveTo((float) 0.4, (float) 0, (float) 0);
         } catch (CallError callError) {
             callError.printStackTrace();

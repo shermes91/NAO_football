@@ -125,14 +125,7 @@ public class VideoController {
                 Mat image = new Mat((int) imageRemote.get(1), (int) imageRemote.get(0), CvType.CV_8UC3);
                 image.put(0, 0, b.array());
 
-                try {
-                    image = detectGoal(image, yellowPixels);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                } catch (CallError callError) {
-                    callError.printStackTrace();
-                }
-                /*switch (moveNao.stage) {
+                switch (moveNao.stage) {
                     case SEARCHBALL:
                         image = detectCircle(image, pinkPixels);
                         break;
@@ -148,10 +141,10 @@ public class VideoController {
                     case ADJUSTTOSHOOT:
                         image = detectCircle(image, pinkPixels);
                         break;
-                }*/
+                }
 
                 // convert and show the frame
-                Image imageToShow = Utils.mat2Image(yellowPixels);
+                Image imageToShow = Utils.mat2Image(image);
                 updateImageView(currentFrame, imageToShow);
 
             }
@@ -164,10 +157,11 @@ public class VideoController {
         Imgproc.GaussianBlur(image, pinkPixels, new Size(9, 9), 0, 0);
 
         Imgproc.cvtColor(pinkPixels, pinkPixels, Imgproc.COLOR_BGR2HSV);
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(1, 4));
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(2, 3));
 
+        Imgproc.dilate(pinkPixels, pinkPixels, kernel);
         Imgproc.erode(pinkPixels, pinkPixels, kernel);
-        Imgproc.erode(pinkPixels, pinkPixels, kernel);
+        Imgproc.dilate(pinkPixels, pinkPixels, kernel);
 
         Core.inRange(pinkPixels, lowerP, upperP, pinkPixels);
     }
@@ -177,24 +171,6 @@ public class VideoController {
         preProcessForBallDetection(pinkPixels, src, new Scalar(150, 120, 30), new Scalar(180, 255, 255));
 
         Mat circles = new Mat();
-
-        int minRadius = 2;
-        int maxRadius = 50;
-        /*Imgproc.HoughCircles(pinkPixels, circles, Imgproc.CV_HOUGH_GRADIENT, 1, minRadius, 120, 10, minRadius, maxRadius);
-
-        if (circles.cols() != 0) {
-            for (int x = 0; x < 1;x++) {
-
-                double vCircle[]=circles.get(0,x);
-
-                Point center=new Point(Math.round(vCircle[0]), Math.round(vCircle[1]));
-                int radius = (int)Math.round(vCircle[2]);
-                // draw the circle center
-                circle(src, center, 3,new Scalar(0,255,0), -1, 8, 0 );
-                // draw the circle outline
-                circle( src, center, radius, new Scalar(0,0,255), 3, 8, 0 );
-            }
-        }*/
 
         List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
         Imgproc.findContours(pinkPixels, contours, new Mat(), Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
@@ -212,9 +188,9 @@ public class VideoController {
                 contoursMaxId = i;
             }
         }
-        if (maxArea > 20 && contoursMaxId != -1) {
+        if (maxArea > 15 && contoursMaxId != -1) {
             MatOfPoint ball = contours.get(contoursMaxId);
-            Point firstPoint = ball.toArray()[contoursMaxId];
+            Point firstPoint = ball.toArray()[0];
             double leftPointX = firstPoint.x;
             double rightPointX = firstPoint.x;
             double bottomY = firstPoint.y;
@@ -261,37 +237,79 @@ public class VideoController {
     private Mat detectGoal(Mat src, Mat yellowPixels) throws InterruptedException, CallError {
 
         Imgproc.GaussianBlur(src, yellowPixels, new Size(5, 5), 0, 0);
-        Imgproc.cvtColor(yellowPixels, yellowPixels, Imgproc.COLOR_BGR2HSV);
+        Imgproc.cvtColor(src, yellowPixels, Imgproc.COLOR_BGR2HSV);
 
 //        Core.inRange(yellowPixels, new Scalar(65, 60, 60), new Scalar(80, 255, 255), yellowPixels);
         Core.inRange(yellowPixels, new Scalar(20,100,100), new Scalar(30, 255, 255), yellowPixels);
+        //Core.inRange(yellowPixels, new Scalar(23,100,133), new Scalar(40, 150, 255), yellowPixels);
 
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5, 5));
 
         Imgproc.dilate(yellowPixels, yellowPixels, kernel);
+        kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 20));
+
+        Imgproc.erode(yellowPixels, yellowPixels, kernel);
         Imgproc.dilate(yellowPixels, yellowPixels, kernel);
-        Imgproc.erode(yellowPixels, yellowPixels, kernel);
-        Imgproc.erode(yellowPixels, yellowPixels, kernel);
 
-        List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
-        Imgproc.findContours(yellowPixels, contours, new Mat(), Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
+        List<MatOfPoint> contours = new ArrayList<>();
+        List<MatOfPoint> posts = new ArrayList<>();
+        Mat temp = yellowPixels.clone();
+        Imgproc.findContours(temp, contours, new Mat(), Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
 
-        double maxArea = 0;
-        int i = -1;
-        int contoursMaxId = -1;
-        Iterator<MatOfPoint> each = contours.iterator();
-        while (each.hasNext()) {
-            i++;
-            MatOfPoint wrapper = each.next();
-            double area = Imgproc.contourArea(wrapper);
-            if (area > maxArea) {
-                maxArea = area;
-                contoursMaxId = i;
+        ArrayList<Point> lowestPoints = new ArrayList<>();
+
+        for (int i = 0; i < contours.size(); i++) {
+            System.out.println(contourArea(contours.get(i)));
+            if(contourArea(contours.get(i)) > 400) {
+                posts.add(contours.get(i));
             }
         }
-        if (maxArea > 100 && contoursMaxId != -1) {
-            MatOfPoint goal = contours.get(contoursMaxId);
-            Point firstPoint = goal.toArray()[contoursMaxId];
+        if (posts.size() == 2) {
+            for (int i = 0; i < posts.size(); i++) {
+
+                Point lowestPointForContour = posts.get(i).toArray()[0];
+                for (Point p : posts.get(i).toArray()) {
+                    if (p.y > lowestPointForContour.y) {
+                        lowestPointForContour = p;
+                    }
+                }
+                lowestPoints.add(lowestPointForContour);
+            }
+            Point leftPointX = lowestPoints.get(0);
+            Point rightPointX = lowestPoints.get(0);
+            System.out.println(leftPointX);
+            System.out.println(rightPointX);
+
+            for (Point p : lowestPoints) {
+                if (p.x < leftPointX.x) {
+                    leftPointX = p;
+                }
+                if (p.x > rightPointX.x) {
+                    rightPointX = p;
+                }
+            }
+
+            Point middle = new Point((rightPointX.x + leftPointX.x) / 2, (rightPointX.y + leftPointX.y) / 2);
+            circle(src, middle, 3, new Scalar(0, 255, 0), -1, 8, 0);
+            if (moveNao.followTarget(middle, true)) {
+                video.unsubscribe(moduleName);
+                moveNao.stage = MoveNao.STAGE.ADJUSTTOSHOOT;
+                moveNao.guesscount = 0;
+                moduleName = subscribeCamera(moveNao.stage);
+            }
+        }
+        else if (posts.size() == 1) {
+            if (posts.get(0).toArray()[0].x < 160) {
+                moveNao.turnHeadLeft();
+            }
+            else{
+                moveNao.turnHeadRight();
+            }
+        }
+        /*else {
+
+            MatOfPoint goal = contours.get(0);
+            Point firstPoint = goal.toArray()[0];
             double leftPointX = firstPoint.x;
             double rightPointX = firstPoint.x;
             double bottomY = firstPoint.y;
@@ -306,7 +324,7 @@ public class VideoController {
                     bottomY = p.y;
                 }
             }
-            drawContours(src, contours, contoursMaxId, new Scalar(0, 0, 255));
+            //drawContours(src, contours, contoursMaxId, new Scalar(0, 0, 255));
             Point middle = new Point((rightPointX + leftPointX) / 2, bottomY);
             circle(src, middle, 3, new Scalar(0, 255, 0), -1, 8, 0);
             if (moveNao.followTarget(middle, true)) {
@@ -315,7 +333,7 @@ public class VideoController {
                 moveNao.guesscount = 0;
                 moduleName = subscribeCamera(moveNao.stage);
             }
-        }
+        }*/
 
         return src;
     }
