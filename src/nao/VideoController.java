@@ -159,11 +159,11 @@ public class VideoController {
         Imgproc.cvtColor(pinkPixels, pinkPixels, Imgproc.COLOR_BGR2HSV);
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(2, 3));
 
+        Core.inRange(pinkPixels, lowerP, upperP, pinkPixels);
+
         Imgproc.dilate(pinkPixels, pinkPixels, kernel);
         Imgproc.erode(pinkPixels, pinkPixels, kernel);
         Imgproc.dilate(pinkPixels, pinkPixels, kernel);
-
-        Core.inRange(pinkPixels, lowerP, upperP, pinkPixels);
     }
 
     private Mat detectCircle(Mat src, Mat pinkPixels) {
@@ -289,7 +289,7 @@ public class VideoController {
                 }
             }
 
-            Point middle = new Point((rightPointX.x + leftPointX.x) / 2, (rightPointX.y + leftPointX.y) / 2);
+            Point middle = new Point((rightPointX.x + leftPointX.x) / 2, (rightPointX.y + leftPointX.y) / 2 - 15);
             circle(src, middle, 3, new Scalar(0, 255, 0), -1, 8, 0);
             if (moveNao.followTarget(middle, true)) {
                 video.unsubscribe(moduleName);

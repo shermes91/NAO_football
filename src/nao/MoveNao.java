@@ -178,7 +178,7 @@ public class MoveNao {
         stage.y = (float) (Math.sin(body.get(0)) * distance);
         stage.x = (float) (Math.cos(body.get(0)) * distance);
         if (stage == STAGE.SEARCHBALL) {
-            stage.y *= 0.7;
+            stage.y *= 0.8;
             stage.x *= 0.7;
         }
         System.out.println("An: " + stage.x);
@@ -251,7 +251,8 @@ public class MoveNao {
         try {
             System.out.println("Moving");
             System.out.println("x: " + stage.x + " y: " + stage.y);
-            alMotion.moveTo(stage.x, stage.y, body.get(0));
+            alMotion.moveTo(stage.x, stage.y, (float) 0);
+            alMotion.moveTo((float) 0, (float)0, body.get(0));
         } catch (CallError callError) {
             callError.printStackTrace();
         } catch (InterruptedException e) {
@@ -264,8 +265,8 @@ public class MoveNao {
         try {
             System.out.println("Moving");
             System.out.println("x: " + adjustedX + " y: " + adjustedY);
-            alMotion.moveTo(adjustedX, adjustedY, (float) 0);
-            alMotion.moveTo((float)0, (float)0, (float) angle);
+            alMotion.moveTo(adjustedX, (float) (adjustedY * 0.8), (float) 0);
+            //alMotion.moveTo((float)0, (float)0, angle);
             alMotion.moveTo((float) 0.4, (float) 0, (float) 0);
         } catch (CallError callError) {
             callError.printStackTrace();
