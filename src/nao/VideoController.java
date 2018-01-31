@@ -170,8 +170,6 @@ public class VideoController {
 
         preProcessForBallDetection(pinkPixels, src, new Scalar(150, 120, 30), new Scalar(180, 255, 255));
 
-        Mat circles = new Mat();
-
         List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
         Imgproc.findContours(pinkPixels, contours, new Mat(), Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
 
@@ -239,9 +237,7 @@ public class VideoController {
         Imgproc.GaussianBlur(src, yellowPixels, new Size(5, 5), 0, 0);
         Imgproc.cvtColor(src, yellowPixels, Imgproc.COLOR_BGR2HSV);
 
-//        Core.inRange(yellowPixels, new Scalar(65, 60, 60), new Scalar(80, 255, 255), yellowPixels);
-        Core.inRange(yellowPixels, new Scalar(20,100,100), new Scalar(30, 255, 255), yellowPixels);
-        //Core.inRange(yellowPixels, new Scalar(23,100,133), new Scalar(40, 150, 255), yellowPixels);
+        Core.inRange(yellowPixels, new Scalar(20, 100, 100), new Scalar(30, 255, 255), yellowPixels);
 
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5, 5));
 
@@ -260,7 +256,7 @@ public class VideoController {
 
         for (int i = 0; i < contours.size(); i++) {
             System.out.println(contourArea(contours.get(i)));
-            if(contourArea(contours.get(i)) > 400) {
+            if (contourArea(contours.get(i)) > 400) {
                 posts.add(contours.get(i));
             }
         }
@@ -297,43 +293,14 @@ public class VideoController {
                 moveNao.guesscount = 0;
                 moduleName = subscribeCamera(moveNao.stage);
             }
-        }
-        else if (posts.size() == 1) {
+        } else if (posts.size() == 1) {
             if (posts.get(0).toArray()[0].x < 160) {
                 moveNao.turnHeadLeft();
-            }
-            else{
+            } else {
                 moveNao.turnHeadRight();
             }
         }
-        /*else {
 
-            MatOfPoint goal = contours.get(0);
-            Point firstPoint = goal.toArray()[0];
-            double leftPointX = firstPoint.x;
-            double rightPointX = firstPoint.x;
-            double bottomY = firstPoint.y;
-            for (Point p : goal.toArray()) {
-                if (p.x > rightPointX) {
-                    rightPointX = p.x;
-                }
-                if (p.x < leftPointX) {
-                    leftPointX = p.x;
-                }
-                if (p.y > bottomY) {
-                    bottomY = p.y;
-                }
-            }
-            //drawContours(src, contours, contoursMaxId, new Scalar(0, 0, 255));
-            Point middle = new Point((rightPointX + leftPointX) / 2, bottomY);
-            circle(src, middle, 3, new Scalar(0, 255, 0), -1, 8, 0);
-            if (moveNao.followTarget(middle, true)) {
-                video.unsubscribe(moduleName);
-                moveNao.stage = MoveNao.STAGE.ADJUSTTOSHOOT;
-                moveNao.guesscount = 0;
-                moduleName = subscribeCamera(moveNao.stage);
-            }
-        }*/
 
         return src;
     }

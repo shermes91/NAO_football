@@ -292,7 +292,7 @@ public class MoveNao {
         System.out.println("Normed_ X: " + vectorX + " Y: " + vectorY);
         adjustedX = (float) (stage.x - (vectorX * 0.3));
         adjustedY = (float) (stage.y - (vectorY * 0.3));
-        angle = (float) (-body.get(0));
+        angle = (-body.get(0));
         System.out.println("AdjustedX: " + adjustedX + " AdjustedY: " + adjustedY + " Angle: " + angle);
     }
 }
