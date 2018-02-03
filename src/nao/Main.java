@@ -7,8 +7,10 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import org.opencv.core.Core;
-import sun.plugin2.applet.FXAppletSecurityManager;
 
+/**
+ * Main class
+ */
 public class Main extends Application {
     VideoController controller;
 
@@ -16,7 +18,7 @@ public class Main extends Application {
     public void start(Stage primaryStage) throws Exception{
         FXMLLoader loader = new FXMLLoader(getClass().getResource("sample.fxml"));
         Parent root = loader.load();
-        primaryStage.setTitle("Hello World");
+        primaryStage.setTitle("Scoring a gaol with Nao");
         primaryStage.setScene(new Scene(root, 800, 600));
         primaryStage.show();
 
@@ -31,6 +33,7 @@ public class Main extends Application {
     }
 
     public static void main(String[] args) {
+        // to use openCV correct, you have to load first the native library
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
         launch(args);
     }

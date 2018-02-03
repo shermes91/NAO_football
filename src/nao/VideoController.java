@@ -21,8 +21,10 @@ import javafx.scene.image.ImageView;
 
 import static org.opencv.imgproc.Imgproc.*;
 
+/**
+ * This class controlls the process for scoring a gaol and does the image processing operations
+ */
 public class VideoController {
-
 
     @FXML
     private ImageView currentFrame;
@@ -38,6 +40,7 @@ public class VideoController {
     ALVideoDevice video;
     private String NAO_CAMERA_NAME = "Nao Image";
     private String moduleName;
+    private static final String NAO_IP = "192.168.1.6";
 
     /**
      * Initialize method, automatically called by @{link FXMLLoader}
@@ -54,12 +57,11 @@ public class VideoController {
     }
 
     /**
-     * initialise to NAO Robot and get its camera interface
+     * initialise the Nao for camera access and own defined class MoveNao for Nao movement
      *
      * @throws Exception
      */
     protected void initNAO() throws Exception {
-
 
         com.aldebaran.qi.Application application;
 
@@ -67,10 +69,7 @@ public class VideoController {
         String[] strings = {""};
         application = new com.aldebaran.qi.Application(strings);
         try {
-
-            String robotIp = "192.168.1.6";
-
-            session.connect("tcp://" + robotIp + ":9559").sync(500, TimeUnit.MILLISECONDS);
+            session.connect("tcp://" + NAO_IP + ":9559").sync(500, TimeUnit.MILLISECONDS);
             video = new ALVideoDevice(session);
             moveNao = new MoveNao(session);
             moduleName = subscribeCamera(moveNao.stage);
@@ -82,6 +81,13 @@ public class VideoController {
         }
     }
 
+    /**
+     * subscribe lower or upper camera, depending in which stage the Nao is in
+     * @param stage Stage
+     * @return modulename, to identify the subscribes camera
+     * @throws CallError
+     * @throws InterruptedException
+     */
     private String subscribeCamera(MoveNao.STAGE stage) throws CallError, InterruptedException {
         int topCamera = 0;
         int bottomCamera = 1;
@@ -98,11 +104,11 @@ public class VideoController {
      * Run thread to get frames from nao and convert it to Mat
      *
      * @param alVideoDevice
-     * @param subscribeCamera
+     * @param moduleName String, which is return from subscribeCamera function
      * @throws InterruptedException
      * @throws CallError
      */
-    private void getNaoFrames(ALVideoDevice alVideoDevice, String subscribeCamera) throws InterruptedException, CallError {
+    private void getNaoFrames(ALVideoDevice alVideoDevice, String moduleName) throws InterruptedException, CallError {
 
 
         Runnable frameGrabber = new Runnable() {
@@ -115,7 +121,7 @@ public class VideoController {
             public void run() {
 
                 try {
-                    imageRemote = (List<Object>) alVideoDevice.getImageRemote(subscribeCamera);
+                    imageRemote = (List<Object>) alVideoDevice.getImageRemote(moduleName);
                 } catch (CallError callError) {
                     callError.printStackTrace();
                 } catch (InterruptedException e) {
@@ -153,6 +159,13 @@ public class VideoController {
         this.timer.scheduleAtFixedRate(frameGrabber, 0, 500, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * Preprocess the image for ball recognition
+     * @param pinkPixels empty image for the solution
+     * @param image original image
+     * @param lowerP lower pink range
+     * @param upperP upper pink range
+     */
     private void preProcessForBallDetection(Mat pinkPixels, Mat image, Scalar lowerP, Scalar upperP) {
         Imgproc.GaussianBlur(image, pinkPixels, new Size(9, 9), 0, 0);
 
@@ -166,6 +179,12 @@ public class VideoController {
         Imgproc.dilate(pinkPixels, pinkPixels, kernel);
     }
 
+    /**
+     * Function for object recognition of the ball and calculate the center point of it.
+     * @param src original image
+     * @param pinkPixels empty image for solution
+     * @return original image with green center point
+     */
     private Mat detectCircle(Mat src, Mat pinkPixels) {
 
         preProcessForBallDetection(pinkPixels, src, new Scalar(150, 120, 30), new Scalar(180, 255, 255));
@@ -232,6 +251,14 @@ public class VideoController {
         return src;
     }
 
+    /**
+     * Function for object recognition of the goal and calculate the center goal line point of it.
+     * @param src original image
+     * @param yellowPixels empty image for solution
+     * @return original image with green cente point
+     * @throws InterruptedException
+     * @throws CallError
+     */
     private Mat detectGoal(Mat src, Mat yellowPixels) throws InterruptedException, CallError {
 
         Imgproc.GaussianBlur(src, yellowPixels, new Size(5, 5), 0, 0);
@@ -305,6 +332,11 @@ public class VideoController {
         return src;
     }
 
+    /**
+     * Is called by closing the window. Bring Nao in initial position and unsubscribe the camera
+     * @throws InterruptedException
+     * @throws CallError
+     */
     @FXML
     public void shutdown() throws InterruptedException, CallError {
         moveNao.shutdown();
@@ -315,7 +347,6 @@ public class VideoController {
 
     /**
      * Update the {@link ImageView} in the JavaFX main thread
-     *
      * @param view  the {@link ImageView} to update
      * @param image the {@link Image} to show
      */
