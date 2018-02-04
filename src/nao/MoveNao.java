@@ -9,11 +9,18 @@ import org.opencv.core.Point;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * This class is mainly used for Nao movement and stage processing
+ */
 public class MoveNao {
 
-
+    //to ensure that nao moves just once
     private boolean nevermoved = true;
 
+
+    /**
+     *  Stages from initiation to goalshot with coordinates
+     */
     public enum STAGE {
         SEARCHBALL, SEARCHGOAL, ADJUSTTOSHOOT, SHOOT;
         private float x = 0, y = 0;
@@ -40,8 +47,11 @@ public class MoveNao {
         }
     }
 
+    // AL-Objects to send operations to Nao
     ALMotion alMotion;
     ALRobotPosture alRobotPosture;
+
+    // declaration and initialisation of variables
     public STAGE stage = STAGE.SEARCHBALL;
     boolean targetIsHorizontalMiddle;
     boolean targetIsVerticalMiddle;
@@ -49,9 +59,13 @@ public class MoveNao {
     List<Float> body = new ArrayList<>();
     float adjustedX, adjustedY, angle;
 
-
+    // Counter for multiple distanceguesses before next step
     public int guesscount = 0;
 
+
+    /**
+     *  method to close hands and bring naos head back center
+     */
     public void shutdown() {
         System.out.println("Moving to Exitposition");
         ArrayList<String> names = new ArrayList<>();
@@ -87,17 +101,23 @@ public class MoveNao {
 
     }
 
-
+    /**
+     * Constructor MoveNao-Object
+     * @param session Connection to Nao
+     * @throws Exception
+     */
     public MoveNao(Session session) throws Exception {
+        // initialisation of Objects to interact with Neo
         alMotion = new ALMotion(session);
         alRobotPosture = new ALRobotPosture(session);
 
+        // reset of old valuses/stats
         alMotion.clearStats();
         alMotion.moveInit();
 
+        // footprotection and collisiondetenction has to be disabled for kicking a Boll
         ArrayList<String> values = new ArrayList<>();
         ArrayList<Object> config = new ArrayList<>();
-
         values.add("ENABLE_FOOT_CONTACT_PROTECTION");
         values.add("False");
 
@@ -112,6 +132,11 @@ public class MoveNao {
         standUp();
     }
 
+    /**
+     * resets Headposition to Center
+     * @throws CallError
+     * @throws InterruptedException
+     */
     public void resetHeadPosition() throws CallError, InterruptedException {
         alMotion.setStiffnesses("Head", 1.0);
         ArrayList<String> names = new ArrayList<>();
@@ -124,12 +149,17 @@ public class MoveNao {
         alMotion.setAngles(names, angles, speed);
     }
 
-    public boolean followTarget(Point p, boolean foundObject) {
+    /**
+     * Method to let Nao follow Ball & measure distance
+     * @param p Point coordinates
+     * @return true if distance has been mesured and switched to next stage
+     */
+    public boolean followTarget(Point p) {
         stage.x = (float) p.x;
         stage.y = (float) p.y;
-        //Mitte 160 : 120
-        float anglex = Math.abs(stage.x) - 160;
-        float angley = (float) ((float) ((120 - stage.y) / 120 * 23.5) * -1 * Math.PI / 360);
+
+        //mid of frame is 160 : 120
+        float angleY = (float) ((float) ((120 - stage.y) / 120 * 23.5) * -1 * Math.PI / 360);
         if (stage.x < 140) {
             turnHeadRight();
             targetIsHorizontalMiddle = false;
@@ -139,7 +169,7 @@ public class MoveNao {
             targetIsHorizontalMiddle = false;
         } else targetIsHorizontalMiddle = true;
         if (stage.y < 115 | stage.y > 125) {
-            turnHeadUpDown(angley);
+            turnHeadUpDown(angleY);
             targetIsVerticalMiddle = false;
         } else targetIsVerticalMiddle = true;
         if (targetIsHorizontalMiddle && targetIsVerticalMiddle) {
@@ -154,9 +184,10 @@ public class MoveNao {
         return false;
     }
 
+    /**
+     * Distance is measured by using angles
+     */
     private void guessDistance() {
-
-
         List<String> names = new ArrayList<>();
         names.add("HeadYaw");
         names.add("HeadPitch");
@@ -170,6 +201,7 @@ public class MoveNao {
         float distance = 0;
         Float bodyPitch = body.get(1);
         System.out.println("Pitch: " + bodyPitch);
+        // use upper or lower Camera depending on Stage
         if (stage == STAGE.ADJUSTTOSHOOT)
             distance = calculateDistanceLowerCamera(bodyPitch);
         else
@@ -181,11 +213,13 @@ public class MoveNao {
             stage.y *= 0.8;
             stage.x *= 0.7;
         }
-        System.out.println("An: " + stage.x);
-        System.out.println("Gegen: " + stage.y);
-
     }
 
+    /**
+     * distance caluculation on upper Camera
+     * @param pitchAngle
+     * @return
+     */
     private float calculateDistanceUpperCamera(float pitchAngle) {
         System.out.println("TOP");
         System.out.println("Pitch: " + pitchAngle);
@@ -194,6 +228,11 @@ public class MoveNao {
         return (float) v;
     }
 
+    /**
+     * distance caluculation on lower Camera
+     * @param pitchAngle
+     * @return
+     */
     private float calculateDistanceLowerCamera(float pitchAngle) {
         System.out.println("BOT");
         System.out.println("Pitch: " + pitchAngle);
@@ -202,6 +241,9 @@ public class MoveNao {
         return (float) v;
     }
 
+    /**
+     * Turns head left
+     */
     public void turnHeadLeft() {
         System.out.println("Turning Left");
         try {
@@ -213,8 +255,11 @@ public class MoveNao {
         }
     }
 
+    /**
+     * Turns head up or down
+     * @param angle Angle to turn
+     */
     private void turnHeadUpDown(float angle) {
-        System.out.println("HeadUp");
         try {
             alMotion.changeAngles("HeadPitch", angle, (float) 0.05);
             Thread.sleep(200);
@@ -225,6 +270,9 @@ public class MoveNao {
         }
     }
 
+    /**
+     * Turns head right
+     */
     public void turnHeadRight() {
         System.out.println("Turning Right");
         try {
@@ -236,6 +284,9 @@ public class MoveNao {
         }
     }
 
+    /**
+     * Lets Nao stand up into startingposition
+     */
     private void standUp() {
         System.out.println("Standing up");
         try {
@@ -247,12 +298,15 @@ public class MoveNao {
         }
     }
 
+    /**
+     * Nao moves to given Coordinates in stage-Object
+     */
     public void moveForward() {
         try {
             System.out.println("Moving");
             System.out.println("x: " + stage.x + " y: " + stage.y);
             alMotion.moveTo(stage.x, stage.y, (float) 0);
-            alMotion.moveTo((float) 0, (float)0, body.get(0));
+            alMotion.moveTo((float) 0, (float) 0, body.get(0));
         } catch (CallError callError) {
             callError.printStackTrace();
         } catch (InterruptedException e) {
@@ -260,13 +314,16 @@ public class MoveNao {
         }
     }
 
+    /**
+     * Calculate and move to adjustementmark and kick the ball into the goal
+     */
     public void moveToAdjustment() {
         calculateAdjustmentMark();
         try {
             System.out.println("Moving");
             System.out.println("x: " + adjustedX + " y: " + adjustedY);
             alMotion.moveTo(adjustedX, (float) (adjustedY * 0.8), (float) 0);
-            //alMotion.moveTo((float)0, (float)0, angle);
+            // kick the ball
             alMotion.moveTo((float) 0.4, (float) 0, (float) 0);
         } catch (CallError callError) {
             callError.printStackTrace();
@@ -276,6 +333,9 @@ public class MoveNao {
 
     }
 
+    /**
+     * Calculate the Position in line of goal and ball
+     */
     private void calculateAdjustmentMark() {
         System.out.println("AdjustingNaoToShoot");
         float vectorX, vectorY;

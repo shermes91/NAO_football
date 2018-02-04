@@ -229,7 +229,7 @@ public class VideoController {
             drawContours(src, contours, contoursMaxId, new Scalar(0, 0, 255));
             Point middle = new Point((rightPointX + leftPointX) / 2, (bottomY + upperY) / 2);
 
-            if (moveNao.followTarget(middle, true)) {
+            if (moveNao.followTarget(middle)) {
                 if (moveNao.stage == MoveNao.STAGE.SEARCHBALL) {
                     moveNao.moveForward();
                     moveNao.stage = MoveNao.STAGE.SEARCHGOAL;
@@ -314,7 +314,7 @@ public class VideoController {
 
             Point middle = new Point((rightPointX.x + leftPointX.x) / 2, (rightPointX.y + leftPointX.y) / 2 - 15);
             circle(src, middle, 3, new Scalar(0, 255, 0), -1, 8, 0);
-            if (moveNao.followTarget(middle, true)) {
+            if (moveNao.followTarget(middle)) {
                 video.unsubscribe(moduleName);
                 moveNao.stage = MoveNao.STAGE.ADJUSTTOSHOOT;
                 moveNao.guesscount = 0;
